@@ -1,0 +1,141 @@
+---
+/**
+ * Cambio obligatorio de contraseña.
+ *
+ * Acá cae quien entra con una contraseña PROVISORIA (la que le pasó Emiliano
+ * al mudar el sistema a internet, o la que le puso el administrador al crearle
+ * el usuario). Hasta que no pone una propia, no ve nada del sistema: el guard
+ * `requiereSesion()` lo trae siempre de vuelta a esta pantalla.
+ *
+ * El servidor es el que baja la marca `debe_cambiar_clave` cuando la persona
+ * cambia su propia contraseña (pb_hooks/seguridad.pb.js). Desde el navegador no
+ * se puede bajar a mano.
+ */
+import Marca from "../components/Marca.astro";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/components.css";
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Elegí tu contraseña · CAPINOA</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      try {
+        const t = localStorage.getItem("capinoa_tema");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div class="login-wrap">
+      <form class="login-card" id="formClave">
+        <Marca tono="color" />
+        <div class="name">CAPI<span class="noa">NOA</span></div>
+        <div class="tag">ELEGÍ TU CONTRASEÑA</div>
+
+        <div class="login-note" style="margin:0 0 14px">
+          Entraste con una contraseña provisoria. Antes de seguir, poné una que
+          sepas solo vos.
+        </div>
+
+        <div class="login-error hidden" id="errorClave"></div>
+
+        <div class="field">
+          <label for="claveActual">Contraseña provisoria</label>
+          <input type="password" id="claveActual" autocomplete="current-password" required />
+        </div>
+        <div class="field">
+          <label for="claveNueva">Contraseña nueva</label>
+          <input type="password" id="claveNueva" autocomplete="new-password" minlength="10" required />
+          <div class="ayuda">Mínimo 10 caracteres. Que no sea una que uses en otro lado.</div>
+        </div>
+        <div class="field">
+          <label for="claveRepetir">Repetila</label>
+          <input type="password" id="claveRepetir" autocomplete="new-password" minlength="10" required />
+        </div>
+        <button class="btn btn-primary" type="submit" id="botonGuardar">Guardar y entrar</button>
+
+        <div style="margin-top:14px; text-align:center">
+          <button class="btn btn-ghost btn-sm" type="button" id="botonSalir">Salir</button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      import { pb } from "../lib/pocketbase";
+      import { usuarioActual, ingresar, LARGO_MINIMO_CLAVE } from "../lib/auth";
+      import { mensajeDeError } from "../lib/ui";
+
+      const yo = usuarioActual();
+      // Sin sesión no hay nada que cambiar acá.
+      if (!yo) location.href = "/login/";
+      // Si ya la cambió, esta pantalla no tiene sentido.
+      else if (!yo.debe_cambiar_clave) location.href = "/";
+
+      const form = document.getElementById("formClave") as HTMLFormElement;
+      const boton = document.getElementById("botonGuardar") as HTMLButtonElement;
+      const cajaError = document.getElementById("errorClave") as HTMLElement;
+      const val = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+
+      const mostrarError = (texto: string) => {
+        cajaError.textContent = texto;
+        cajaError.classList.remove("hidden");
+      };
+
+      document.getElementById("botonSalir")?.addEventListener("click", () => {
+        pb.authStore.clear();
+        location.href = "/login/";
+      });
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        cajaError.classList.add("hidden");
+
+        const actual = val("claveActual");
+        const nueva = val("claveNueva");
+        if (nueva.length < LARGO_MINIMO_CLAVE) {
+          mostrarError(`La contraseña nueva tiene que tener al menos ${LARGO_MINIMO_CLAVE} caracteres.`);
+          return;
+        }
+        if (nueva !== val("claveRepetir")) {
+          mostrarError("Las dos contraseñas nuevas no coinciden.");
+          return;
+        }
+        if (nueva === actual) {
+          mostrarError("La contraseña nueva tiene que ser distinta de la provisoria.");
+          return;
+        }
+
+        boton.disabled = true;
+        boton.textContent = "Guardando…";
+        try {
+          await pb.collection("equipo").update(yo!.id, {
+            oldPassword: actual,
+            password: nueva,
+            passwordConfirm: nueva,
+          });
+          // Al cambiar la contraseña el servidor da de baja la sesión anterior:
+          // volvemos a entrar solos con la nueva, para no hacerle escribir todo otra vez.
+          pb.authStore.clear();
+          await ingresar(yo!.email, nueva);
+          location.href = "/";
+        } catch (err) {
+          const texto = mensajeDeError(err);
+          mostrarError(
+            texto.toLowerCase().includes("oldpassword")
+              ? "La contraseña provisoria no es correcta."
+              : texto
+          );
+          boton.disabled = false;
+          boton.textContent = "Guardar y entrar";
+        }
+      });
+    </script>
+  </body>
+</html>

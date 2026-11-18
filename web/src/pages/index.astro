@@ -1,0 +1,234 @@
+---
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Panel" subtitulo="Resumen del consultorio">
+  <div class="stats" id="indicadores">
+    <div class="stat">
+      <div class="ic teal">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          ><circle cx="9" cy="8" r="3" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0M16 5a3 3 0 0 1 0 6" /></svg
+        >
+      </div>
+      <div class="v tnum" id="kpiPacientes">—</div>
+      <div class="k">Pacientes registrados</div>
+    </div>
+    <a class="stat" href="/agenda/">
+      <div class="ic blue">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          ><rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path
+            d="M3 9h18M8 2.5v4M16 2.5v4"
+          /></svg
+        >
+      </div>
+      <div class="v tnum" id="kpiTurnos">—</div>
+      <div class="k">Turnos de hoy</div>
+    </a>
+    <div class="stat" data-solo="clinico">
+      <div class="ic green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          ><path d="M4 18l6-6 4 4 6-8" /><path d="M20 8h-4M20 8v4" /></svg
+        >
+      </div>
+      <div class="v tnum" id="kpiTratamiento">—</div>
+      <div class="k">En tratamiento</div>
+    </div>
+    <div class="stat" data-solo="clinico">
+      <div class="ic amber">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          ><path d="M12 8v4l3 2" /><circle cx="12" cy="12" r="9" /></svg
+        >
+      </div>
+      <div class="v tnum" id="kpiControles">—</div>
+      <div class="k">Controles pendientes</div>
+    </div>
+
+    <a class="stat" href="/finanzas/" data-solo="clinico">
+      <div class="ic green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+          ><path d="M12 2v20M17 6.5c0-2-2.2-3-5-3s-5 1-5 3.2c0 4.8 10 2.8 10 7.4 0 2.3-2.2 3.4-5 3.4s-5-1.2-5-3.2" /></svg
+        >
+      </div>
+      <div class="v tnum" id="kpiIngresos">—</div>
+      <div class="k" id="kpiIngresosLabel">Ingresos del mes</div>
+    </a>
+  </div>
+
+  <div class="two-col">
+    <section class="card pad">
+      <div class="section-title">
+        Agenda de hoy
+        <a class="hint" href="/agenda/">Ver la agenda →</a>
+      </div>
+      <div id="agendaHoy">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </section>
+
+    <section class="card pad" data-solo="clinico">
+      <div class="section-title">Próximos controles</div>
+      <div class="rows" id="listaControles">
+        <div class="vacio">Cargando…</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="card pad">
+    <div class="section-title">
+      Últimos pacientes
+      <a class="hint" href="/pacientes/">Ver todos →</a>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Paciente</th>
+            <th>Estado</th>
+            <th>Alta</th>
+          </tr>
+        </thead>
+        <tbody id="filasUltimos">
+          <tr><td colspan="3" class="vacio">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</AppLayout>
+
+<script>
+  import { pb } from "../lib/pocketbase";
+  import { puedeVerClinico } from "../lib/auth";
+  import {
+    esc, fecha, hora, iniciales, colorDe, enlace, legible, rangoDelDia, hoyInput,
+    montoARS, nombreMes, ESTADOS_PACIENTE, TIPOS_TURNO, ESTADOS_TURNO,
+  } from "../lib/ui";
+
+  const clinico = puedeVerClinico();
+  if (!clinico) {
+    document.querySelectorAll('[data-solo="clinico"]').forEach((el) => el.remove());
+  }
+
+  function chipEstado(estado?: string): string {
+    const e = ESTADOS_PACIENTE[estado ?? ""] ?? { texto: "—", tono: "neutral" };
+    return `<span class="pill ${e.tono}">${esc(e.texto)}</span>`;
+  }
+
+  async function cargar() {
+    // ---- Pacientes ----
+    try {
+      const lista = await pb.collection("pacientes").getList(1, 6, { sort: "-created" });
+      document.getElementById("kpiPacientes")!.textContent = String(lista.totalItems);
+
+      const cuerpo = document.getElementById("filasUltimos")!;
+      cuerpo.innerHTML = lista.items.length
+        ? lista.items
+            .map(
+              (p: any) => `
+        <tr onclick="location.href='${esc(enlace("/pacientes/ficha", { id: p.id }))}'">
+          <td>
+            <div class="person">
+              <div class="av" style="background:${colorDe(p.id)}">${esc(iniciales(p.apellido, p.nombre))}</div>
+              <div><b>${esc(p.apellido)}, ${esc(p.nombre)}</b><span>${esc(p.telefono ?? "sin teléfono")}</span></div>
+            </div>
+          </td>
+          <td>${chipEstado(p.estado)}</td>
+          <td class="tnum">${fecha(p.created)}</td>
+        </tr>`
+            )
+            .join("")
+        : `<tr><td colspan="3" class="vacio"><b>Todavía no hay pacientes</b>Cargá el primero desde el módulo Pacientes.</td></tr>`;
+
+      if (clinico) {
+        const enTratamiento = await pb
+          .collection("pacientes")
+          .getList(1, 1, { filter: 'estado = "en_tratamiento"', fields: "id" });
+        document.getElementById("kpiTratamiento")!.textContent = String(enTratamiento.totalItems);
+      }
+    } catch {
+      document.getElementById("filasUltimos")!.innerHTML =
+        `<tr><td colspan="3" class="vacio">No se pudo conectar con la base de datos. ¿Está corriendo CAPINOA?</td></tr>`;
+    }
+
+    // ---- Agenda de hoy ----
+    try {
+      const turnos = await pb.collection("turnos").getFullList({
+        filter: rangoDelDia(hoyInput()),
+        sort: "inicio",
+        expand: "paciente",
+      });
+      const activos = turnos.filter((t: any) => t.estado !== "cancelado");
+      document.getElementById("kpiTurnos")!.textContent = String(activos.length);
+
+      const caja = document.getElementById("agendaHoy")!;
+      caja.innerHTML = turnos.length
+        ? `<div class="rows">${turnos
+            .map((t: any) => {
+              const tipo = TIPOS_TURNO[t.tipo]?.texto ?? legible(t.tipo) ?? "Turno";
+              const estado = ESTADOS_TURNO[t.estado] ?? { texto: "Por confirmar", tono: "warn" };
+              const p = t.expand?.paciente;
+              const nombre = p ? `${p.apellido}, ${p.nombre}` : t.nombre_libre || "Sin nombre";
+              return `<div class="row"${p ? ` style="cursor:pointer" onclick="location.href='${esc(enlace("/pacientes/ficha", { id: p.id }))}'"` : ""}>
+                  <span class="time tnum">${esc(hora(t.inicio))}</span>
+                  <div class="txt"><b>${esc(nombre)}</b><span>${esc(tipo)}</span></div>
+                  <span class="tag pill ${estado.tono}">${esc(estado.texto)}</span>
+                </div>`;
+            })
+            .join("")}</div>`
+        : `<div class="vacio">No hay turnos agendados para hoy.</div>`;
+    } catch {
+      document.getElementById("kpiTurnos")!.textContent = "0";
+      document.getElementById("agendaHoy")!.innerHTML =
+        `<div class="vacio">No se pudo cargar la agenda.</div>`;
+    }
+
+    if (!clinico) return;
+
+    // ---- Ingresos del mes ----
+    try {
+      const mes = hoyInput().slice(0, 7);
+      const ultimo = new Date(
+        Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)
+      ).getUTCDate();
+      const movimientos = await pb.collection("movimientos").getFullList({
+        filter: `tipo = "ingreso" && fecha >= "${mes}-01 00:00:00" && fecha <= "${mes}-${ultimo} 23:59:59"`,
+        fields: "id,monto",
+      });
+      const total = movimientos.reduce((s: number, m: any) => s + (m.monto || 0), 0);
+      document.getElementById("kpiIngresos")!.textContent = montoARS(total);
+      document.getElementById("kpiIngresosLabel")!.textContent =
+        `Ingresos de ${nombreMes(hoyInput()).split(" ")[0]}`;
+    } catch {
+      document.getElementById("kpiIngresos")!.textContent = "$0";
+    }
+
+    // ---- Próximos controles ----
+    try {
+      const hoy = hoyInput();
+      const controles = await pb.collection("evaluaciones").getList(1, 6, {
+        filter: `proximo_control >= "${hoy} 00:00:00"`,
+        sort: "proximo_control",
+        expand: "paciente",
+      });
+      document.getElementById("kpiControles")!.textContent = String(controles.totalItems);
+
+      const caja = document.getElementById("listaControles")!;
+      caja.innerHTML = controles.items.length
+        ? controles.items
+            .map((ev: any) => {
+              const p = ev.expand?.paciente;
+              const nombre = p ? `${p.apellido}, ${p.nombre}` : "Paciente";
+              return `<div class="row" ${p ? `style="cursor:pointer" onclick="location.href='${esc(enlace("/pacientes/ficha", { id: p.id }))}'"` : ""}>
+                <span class="time tnum">${fecha(ev.proximo_control)}</span>
+                <div class="txt"><b>${esc(nombre)}</b><span>${esc(ev.diagnostico_principal ?? "Control programado")}</span></div>
+              </div>`;
+            })
+            .join("")
+        : `<div class="vacio">Sin controles programados.</div>`;
+    } catch {
+      document.getElementById("listaControles")!.innerHTML =
+        `<div class="vacio">No se pudieron cargar los controles.</div>`;
+    }
+  }
+
+  cargar();
+</script>

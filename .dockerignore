@@ -1,0 +1,26 @@
+# No mandar al servidor: datos sensibles, dependencias y archivos locales.
+# Los datos reales (pb_data) viajan aparte, por respaldo; nunca dentro de la imagen.
+pb_data/
+pb_data_*/
+respaldos/
+paquetes/
+actualizaciones/
+entrega/
+*.rar
+*.zip
+*.tar.gz
+pocketbase
+pocketbase.exe
+pb_public/
+**/node_modules/
+web/dist/
+web/.astro/
+*.log
+.git/
+.github/
+.env
+**/.env
+.DS_Store
+*.bat
+*.command
+herramientas/

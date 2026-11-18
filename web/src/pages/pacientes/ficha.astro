@@ -1,0 +1,1338 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Ficha del paciente">
+  <a class="btn btn-ghost btn-sm volver" href="/pacientes/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      ><path d="M15 18l-6-6 6-6" /></svg
+    >
+    Volver a pacientes
+  </a>
+
+  <section class="card pad">
+    <div class="pf-head">
+      <div class="av" id="pfAvatar">··</div>
+      <div>
+        <h2 id="pfNombre">Cargando…</h2>
+        <div class="pf-meta" id="pfMeta"></div>
+      </div>
+      <div class="pf-actions">
+        <a class="btn btn-ghost btn-sm" id="botonTurno" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path
+              d="M3 9h18M8 2.5v4M16 2.5v4"
+            /></svg
+          >
+          Dar turno
+        </a>
+        <a class="btn btn-ghost btn-sm" id="botonEditar" href="#">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><path d="M4 20h4l10-10-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></svg
+          >
+          Editar datos
+        </a>
+        <button class="btn btn-ghost btn-sm hidden" id="botonEliminar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg
+          >
+          Eliminar paciente
+        </button>
+      </div>
+    </div>
+
+    <div class="tabs" id="pestanas">
+      <button class="active" data-tab="resumen">Resumen</button>
+      <button data-tab="historia" data-solo="clinico">Historia clínica</button>
+      <button data-tab="evaluaciones" data-solo="clinico">Evaluaciones</button>
+      <button data-tab="fotos" data-solo="clinico">Fotos</button>
+      <button data-tab="marcado" data-solo="clinico">Marcado sobre foto</button>
+      <button data-tab="cuenta" data-solo="clinico">Cuenta</button>
+    </div>
+
+    <!-- ══════════ RESUMEN ══════════ -->
+    <div class="tabpane" data-pane="resumen">
+      <div id="cajaAlertas"></div>
+      <div class="section-title">Datos personales</div>
+      <div class="dl" id="dlPersonales"></div>
+      <div data-solo="clinico">
+        <div class="section-title">Última evaluación</div>
+        <div id="cajaUltimaEval"></div>
+      </div>
+    </div>
+
+    <!-- ══════════ HISTORIA CLÍNICA ══════════ -->
+    <div class="tabpane hidden" data-pane="historia">
+      <div class="section-title">
+        Historia clínica tricológica
+        <span class="hint" id="progresoTotal"></span>
+      </div>
+      <p class="section-desc">
+        Estas preguntas las contesta el paciente sobre sí mismo. No hace falta
+        completarlas todas de una: se guarda lo que haya y se sigue en la próxima
+        consulta. El día que exista el formulario online, son exactamente estas
+        preguntas las que se publican.
+      </p>
+      <div id="formHistoria"></div>
+      <div class="toolbar acciones">
+        <span id="avisoCambios" style="font-size:.82rem; color:var(--warn); margin-right:auto"></span>
+        <button class="btn btn-primary" id="guardarHistoria">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M5 12l5 5L20 7" /></svg
+          >
+          Guardar historia clínica
+        </button>
+      </div>
+    </div>
+
+    <!-- ══════════ EVALUACIONES ══════════ -->
+    <div class="tabpane hidden" data-pane="evaluaciones">
+      <div id="listaEvaluaciones"></div>
+      <div id="editorEvaluacion" class="apilado hidden"></div>
+    </div>
+
+    <!-- ══════════ FOTOS ══════════ -->
+    <div class="tabpane hidden" data-pane="fotos">
+      <div class="section-title">
+        Fotos clínicas
+        <span class="hint">misma luz, misma distancia y mismo peinado en cada control</span>
+      </div>
+      <p class="section-desc">
+        Elegí en qué momento del tratamiento estás y desde dónde sacaste la foto;
+        después subí las imágenes. El sistema las ordena solas para comparar la
+        evolución.
+      </p>
+
+      <div class="toolbar">
+        <div class="field" style="min-width:180px">
+          <label for="momentoSubida">Momento</label>
+          <select id="momentoSubida"></select>
+        </div>
+        <div class="field" style="min-width:180px">
+          <label for="tomaSubida">Toma</label>
+          <select id="tomaSubida"></select>
+        </div>
+        <div class="field" style="min-width:150px">
+          <label for="fechaSubida">Fecha</label>
+          <input type="date" id="fechaSubida" />
+        </div>
+      </div>
+
+      <div class="dropzone" id="zonaFotos" tabindex="0" role="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          ><path d="M12 16V4M8 8l4-4 4 4" /><path
+            d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"
+          /></svg
+        >
+        <b>Sacar o subir fotos</b>
+        <small>
+          Tocá acá para elegir del equipo o sacar una con la cámara. También podés
+          arrastrar las imágenes hasta este recuadro.
+        </small>
+        <input type="file" id="archivoFotos" accept="image/*" multiple hidden />
+      </div>
+      <div id="progresoSubida" style="margin-top:10px; font-size:.85rem; color:var(--muted)"></div>
+
+      <div id="galeria"></div>
+    </div>
+
+    <!-- ══════════ MARCADO ══════════ -->
+    <div class="tabpane hidden" data-pane="marcado">
+      <div class="section-title">
+        Diseño de la línea de implante
+        <span class="hint">se dibuja arriba de la foto — la foto original no se toca</span>
+      </div>
+      <p class="section-desc">
+        Elegí una foto del paciente y marcá encima la nueva línea frontal y las
+        zonas a implantar. Sirve para mostrárselo en la pantalla del consultorio y
+        queda guardado para comparar contra el resultado.
+      </p>
+
+      <div id="tiraFotos"></div>
+      <div id="areaMarcado"></div>
+    </div>
+
+    <!-- ══════════ CUENTA ══════════ -->
+    <div class="tabpane hidden" data-pane="cuenta">
+      <div class="section-title">
+        Cuenta del paciente
+        <a class="hint" id="registrarPago" href="#">Registrar un cobro →</a>
+      </div>
+      <p class="section-desc">
+        Todo lo que este paciente pagó, tomado de Finanzas. Sirve para saber de un
+        vistazo cuánto lleva abonado del tratamiento.
+      </p>
+      <div id="cajaCuenta"></div>
+    </div>
+
+    <!-- ══════════ BLOQUEO PARA RECEPCIÓN ══════════ -->
+    <div class="tabpane hidden" data-pane="bloqueado">
+      <div class="lock">
+        <div class="ring">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            ><rect x="4.5" y="10" width="15" height="10" rx="2" /><path
+              d="M8 10V7a4 4 0 0 1 8 0v3"
+            /></svg
+          >
+        </div>
+        <h3>Sección reservada al médico</h3>
+        <p>
+          La historia clínica y las fotos de los pacientes solo las ve el
+          profesional. Desde recepción se gestionan los datos de contacto y los
+          turnos.
+        </p>
+      </div>
+    </div>
+  </section>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { puedeVerClinico, puedeEliminarPacientes, usuarioActual } from "../../lib/auth";
+  import { imagen, liberar, achicarFoto } from "../../lib/archivos";
+  import { Marcador, COLORES_MARCADO } from "../../lib/marcador";
+  import {
+    SECCIONES_HISTORIA,
+    SECCIONES_EVALUACION,
+    seccionesPara,
+    alertas,
+    progresoSeccion,
+  } from "../../lib/cuestionario";
+  import {
+    dibujarSeccion,
+    activarFormulario,
+    leerFormulario,
+    combinarRespuestas,
+    actualizarProgresos,
+  } from "../../lib/formulario";
+  import {
+    esc, fecha, fechaInput, hoyInput, edad, iniciales, colorDe, legible, enlace,
+    aviso, mensajeDeError, montoARS, ESTADOS_PACIENTE, TOMAS, MOMENTOS,
+    ORDEN_MOMENTOS, TIPOS_EVALUACION, COMO_LLEGO, CATEGORIAS, MEDIOS_PAGO, ICONO,
+  } from "../../lib/ui";
+
+  const idPaciente = new URLSearchParams(location.search).get("id");
+  const clinico = puedeVerClinico();
+
+  let paciente: any = null;
+  let historia: any = null;
+  let fotos: any[] = [];
+  let seccionesDelPaciente = SECCIONES_HISTORIA;
+
+  if (!idPaciente) location.href = "/pacientes/";
+
+  /* ══════════════════ Pestañas ══════════════════ */
+
+  /** Cambia de pestaña sin disparar la carga de datos (para cuando quien llama
+   *  se encarga de cargar y necesita esperar a que termine). */
+  function mostrarPestañaSinCargar(nombre: string) {
+    document.querySelectorAll<HTMLElement>("[data-pane]").forEach((p) =>
+      p.classList.toggle("hidden", p.dataset.pane !== nombre)
+    );
+    document.querySelectorAll<HTMLElement>("#pestanas button").forEach((b) =>
+      b.classList.toggle("active", b.dataset.tab === nombre)
+    );
+  }
+
+  function mostrarPestaña(nombre: string) {
+    mostrarPestañaSinCargar(nombre);
+    if (nombre === "fotos") cargarGaleria();
+    if (nombre === "marcado") cargarTiraFotos();
+    if (nombre === "evaluaciones") cargarEvaluaciones();
+    if (nombre === "cuenta") cargarCuenta();
+  }
+
+  document.querySelectorAll<HTMLElement>("#pestanas button").forEach((b) => {
+    b.addEventListener("click", () => mostrarPestaña(b.dataset.tab!));
+  });
+
+  if (!clinico) {
+    // Recepción: se quitan las pestañas clínicas y los bloques marcados.
+    document.querySelectorAll('[data-solo="clinico"]').forEach((el) => el.remove());
+  }
+
+  /* ══════════════════ Cabecera y resumen ══════════════════ */
+
+  async function cargarPaciente() {
+    try {
+      paciente = await pb.collection("pacientes").getOne(idPaciente!, { expand: "medico" });
+    } catch {
+      aviso("No se encontró el paciente.", "error");
+      return;
+    }
+
+    const años = edad(paciente.fecha_nacimiento);
+    document.getElementById("pfNombre")!.textContent = `${paciente.apellido}, ${paciente.nombre}`;
+    const avatar = document.getElementById("pfAvatar")!;
+    avatar.textContent = iniciales(paciente.apellido, paciente.nombre);
+    avatar.style.background = colorDe(paciente.id);
+    (document.getElementById("botonEditar") as HTMLAnchorElement).href =
+      enlace("/pacientes/nuevo", { id: paciente.id });
+    (document.getElementById("botonTurno") as HTMLAnchorElement).href =
+      enlace("/agenda", { paciente: paciente.id });
+    const enlacePago = document.getElementById("registrarPago") as HTMLAnchorElement | null;
+    if (enlacePago) enlacePago.href = enlace("/finanzas", { paciente: paciente.id });
+
+    const estado = ESTADOS_PACIENTE[paciente.estado ?? ""] ?? { texto: "Sin estado", tono: "neutral" };
+    document.getElementById("pfMeta")!.innerHTML = [
+      años !== null ? `<span><b>${años}</b> años</span>` : "",
+      paciente.sexo ? `<span>${esc(legible(paciente.sexo))}</span>` : "",
+      paciente.dni ? `<span>DNI <b>${esc(paciente.dni)}</b></span>` : "",
+      paciente.telefono ? `<span>Tel <b>${esc(paciente.telefono)}</b></span>` : "",
+      `<span class="pill ${estado.tono}">${esc(estado.texto)}</span>`,
+    ].filter(Boolean).join("");
+
+    // Solo se muestran las secciones que corresponden al sexo cargado.
+    seccionesDelPaciente = seccionesPara(SECCIONES_HISTORIA, paciente.sexo);
+
+    // Las alergias van arriba de todo, junto a las banderas rojas: es lo que
+    // hay que ver sí o sí antes de un procedimiento.
+    if (paciente.alergias) {
+      document.getElementById("pfMeta")!.insertAdjacentHTML(
+        "beforeend",
+        `<span class="pill bad" title="Alergias">Alergias: ${esc(paciente.alergias)}</span>`
+      );
+    }
+
+    const medico = paciente.expand?.medico?.nombre;
+    document.getElementById("dlPersonales")!.innerHTML = [
+      ["Alergias", paciente.alergias],
+      ["Fecha de nacimiento", fecha(paciente.fecha_nacimiento)],
+      ["Teléfono", paciente.telefono],
+      ["Email", paciente.email],
+      ["Domicilio", [paciente.domicilio, paciente.localidad].filter(Boolean).join(" · ")],
+      ["Profesión / actividad", paciente.ocupacion],
+      ["Primera consulta", fecha(paciente.fecha_primera_consulta)],
+      ["Médico evaluador", medico],
+      ["Cómo llegó", [COMO_LLEGO[paciente.como_llego] ?? "", paciente.como_llego_detalle].filter(Boolean).join(" · ")],
+      ["Observaciones", paciente.observaciones],
+    ]
+      .filter(([, v]) => v)
+      .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`)
+      .join("") || `<div><dt>Sin datos adicionales</dt><dd>Tocá “Editar datos” para completarlos.</dd></div>`;
+
+    if (clinico) {
+      await cargarHistoria();
+      await cargarUltimaEvaluacion();
+    }
+  }
+
+  /* ══════════════════ Eliminar el paciente ══════════════════ */
+
+  /**
+   * Borrado definitivo de un paciente. Quién puede: la misma regla que aplica
+   * el servidor (ver `puedeEliminarPacientes`); acá solo se esconde el botón.
+   *
+   * Qué se lleva puesto, y por qué cada cosa:
+   *   · historia, evaluaciones, fotos y marcados → los borra PocketBase solo,
+   *     por el `cascadeDelete: true` de las migraciones. No hay que tocarlos.
+   *   · turnos → los borramos nosotros. Están con `cascadeDelete: false`, así
+   *     que si no, quedan en la agenda apuntando a alguien que ya no existe.
+   *   · movimientos de dinero → NO se borran. Un cobro hecho es un hecho
+   *     contable: si desapareciera, los totales de Finanzas dejarían de cerrar.
+   *     Se les saca la relación y se les anota a nombre de quién estaban.
+   *
+   * Pide escribir el apellido a propósito: un `confirm()` se acepta de memoria
+   * sin leerlo, y acá lo que se pierde es una historia clínica entera.
+   */
+  async function abrirEliminarPaciente() {
+    if (!paciente) return;
+
+    const filtro = `paciente = "${paciente.id}"`;
+    const nombre = `${paciente.apellido}, ${paciente.nombre}`;
+
+    let hi = 0, ev = 0, ft = 0, tu = 0, mo = 0;
+    try {
+      const [rHi, rEv, rFt, rTu, rMo] = await Promise.all([
+        pb.collection("historias").getList(1, 1, { filter: filtro }),
+        pb.collection("evaluaciones").getList(1, 1, { filter: filtro }),
+        pb.collection("fotos").getList(1, 1, { filter: filtro }),
+        pb.collection("turnos").getList(1, 1, { filter: filtro }),
+        pb.collection("movimientos").getList(1, 1, { filter: filtro }),
+      ]);
+      hi = rHi.totalItems; ev = rEv.totalItems; ft = rFt.totalItems;
+      tu = rTu.totalItems; mo = rMo.totalItems;
+    } catch (e) {
+      aviso(mensajeDeError(e), "error");
+      return;
+    }
+
+    const plural = (n: number, uno: string, varios: string) =>
+      `${n} ${n === 1 ? uno : varios}`;
+    const seBorra = [
+      hi ? "la historia clínica completa" : "",
+      ev ? plural(ev, "evaluación", "evaluaciones") : "",
+      ft ? `${plural(ft, "foto", "fotos")} (y los marcados hechos encima)` : "",
+      tu ? `${plural(tu, "turno", "turnos")} de la agenda` : "",
+    ].filter(Boolean);
+
+    const dlg = document.createElement("dialog");
+    dlg.className = "modal";
+    dlg.innerHTML = `
+      <div class="modal-head">
+        <h3>Eliminar a ${esc(nombre)}</h3>
+        <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><b>Esto no se puede deshacer.</b> Se borra para siempre:</p>
+        <ul style="margin:var(--esp-2) 0 0 1.2em">
+          ${
+            seBorra.length
+              ? seBorra.map((t) => `<li>${esc(t)}</li>`).join("")
+              : "<li>solo la ficha: todavía no tiene nada cargado</li>"
+          }
+        </ul>
+        ${
+          mo === 1
+            ? `<p style="margin-top:var(--esp-3)">El <b>movimiento de dinero</b> no se borra: queda en Finanzas anotado a nombre de “${esc(nombre)}”, para que las cuentas sigan cerrando.</p>`
+            : mo > 1
+              ? `<p style="margin-top:var(--esp-3)">Los <b>${mo} movimientos de dinero</b> no se borran: quedan en Finanzas anotados a nombre de “${esc(nombre)}”, para que las cuentas sigan cerrando.</p>`
+              : ""
+        }
+        <p style="margin-top:var(--esp-3)">Si lo único que querés es sacarlo del listado, cerrá esto y en “Editar datos” ponele el estado <b>Inactivo</b>: así no se pierde nada y podés volver atrás.</p>
+        <div class="field" style="margin-top:var(--esp-3)">
+          <label>Para confirmar, escribí el apellido: <b>${esc(paciente.apellido)}</b></label>
+          <input type="text" id="confirmaApellido" autocomplete="off" spellcheck="false">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="cancelarEliminar">Cancelar</button>
+        <button class="btn btn-danger btn-sm" id="confirmarEliminar" disabled>${ICONO.borrar} Eliminar definitivamente</button>
+      </div>`;
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    const cerrar = () => {
+      dlg.close();
+      dlg.remove();
+    };
+    dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+    dlg.querySelector("#cancelarEliminar")?.addEventListener("click", cerrar);
+
+    const campo = dlg.querySelector("#confirmaApellido") as HTMLInputElement;
+    const botonOk = dlg.querySelector("#confirmarEliminar") as HTMLButtonElement;
+    // Se acepta con o sin tilde y en mayúsculas o minúsculas: "Rios" vale
+    // para "Ríos". Lo que importa es que se lea el nombre, no la ortografía.
+    const normalizar = (t: string) =>
+      t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase();
+    const coincide = () =>
+      normalizar(campo.value) === normalizar(String(paciente.apellido));
+    campo.addEventListener("input", () => {
+      botonOk.disabled = !coincide();
+    });
+    campo.focus();
+
+    botonOk.addEventListener("click", async () => {
+      if (!coincide()) return;
+      botonOk.disabled = true;
+      botonOk.textContent = "Eliminando…";
+      try {
+        // 1. Los cobros se conservan, con el nombre anotado.
+        const movs = await pb.collection("movimientos").getFullList({ filter: filtro });
+        for (const m of movs) {
+          const nota = `Paciente eliminado: ${nombre}`;
+          await pb.collection("movimientos").update(m.id, {
+            paciente: null,
+            notas: (m.notas ? `${m.notas}\n${nota}` : nota).slice(0, 2000),
+          });
+        }
+        // 2. Los turnos no tienen sentido sin el paciente.
+        const turnos = await pb.collection("turnos").getFullList({ filter: filtro });
+        for (const t of turnos) await pb.collection("turnos").delete(t.id);
+        // 3. Y la ficha. Historia, evaluaciones, fotos y marcados caen con ella.
+        await pb.collection("pacientes").delete(paciente.id);
+        location.href = "/pacientes/";
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+        botonOk.innerHTML = `${ICONO.borrar} Eliminar definitivamente`;
+        botonOk.disabled = false;
+      }
+    });
+  }
+
+  // Se esconde con la clase `.hidden` y no con el atributo `hidden`: el
+  // `display` de `.btn` le gana al atributo y el botón quedaba a la vista de
+  // recepción (el servidor igual le rechazaba el borrado).
+  if (puedeEliminarPacientes()) {
+    const b = document.getElementById("botonEliminar") as HTMLButtonElement;
+    b.classList.remove("hidden");
+    b.addEventListener("click", abrirEliminarPaciente);
+  }
+
+  /* ══════════════════ Historia clínica ══════════════════ */
+
+  async function cargarHistoria() {
+    try {
+      historia = await pb
+        .collection("historias")
+        .getFirstListItem(pb.filter("paciente = {:p}", { p: idPaciente }));
+    } catch {
+      historia = null; // todavía no tiene historia: se crea al guardar
+    }
+    dibujarHistoria();
+    dibujarAlertas();
+  }
+
+  function dibujarHistoria() {
+    const respuestas = historia?.respuestas ?? {};
+    const caja = document.getElementById("formHistoria");
+    if (!caja) return;
+
+    caja.innerHTML = seccionesDelPaciente
+      .map((s) => dibujarSeccion(s, respuestas, { abierta: false }))
+      .join("");
+
+    activarFormulario(caja, () => {
+      actualizarProgresos(caja, seccionesDelPaciente);
+      document.getElementById("avisoCambios")!.textContent = "Hay cambios sin guardar";
+      refrescarProgresoTotal();
+    });
+    refrescarProgresoTotal();
+  }
+
+  function refrescarProgresoTotal() {
+    const caja = document.getElementById("formHistoria");
+    if (!caja) return;
+    const respuestas = leerFormulario(caja);
+    let hechas = 0, total = 0;
+    for (const s of seccionesDelPaciente) {
+      const p = progresoSeccion(s, respuestas);
+      hechas += p.contestadas;
+      total += p.total;
+    }
+    document.getElementById("progresoTotal")!.textContent = `${hechas} de ${total} preguntas contestadas`;
+  }
+
+  function dibujarAlertas() {
+    const caja = document.getElementById("cajaAlertas");
+    if (!caja) return;
+    const banderas = alertas(historia?.respuestas ?? {});
+    caja.innerHTML = banderas.length
+      ? `<div class="alertas">
+           <h4>${ICONO.alerta} Puntos a tener en cuenta</h4>
+           <ul>${banderas.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>
+         </div>`
+      : "";
+  }
+
+  document.getElementById("guardarHistoria")?.addEventListener("click", async () => {
+    const boton = document.getElementById("guardarHistoria") as HTMLButtonElement;
+    const caja = document.getElementById("formHistoria")!;
+    boton.disabled = true;
+    try {
+      const datos = {
+        paciente: idPaciente,
+        // Se combina con lo guardado para no borrar las secciones que hoy no
+        // se muestran (ver combinarRespuestas).
+        respuestas: combinarRespuestas(historia?.respuestas, leerFormulario(caja), caja),
+        completado_por: historia?.completado_por ?? "medico",
+        estado: historia?.estado ?? "borrador",
+        actualizado_por: usuarioActual()?.id ?? null,
+      };
+      historia = historia
+        ? await pb.collection("historias").update(historia.id, datos)
+        : await pb.collection("historias").create(datos);
+      document.getElementById("avisoCambios")!.textContent = "";
+      dibujarAlertas();
+      aviso("Historia clínica guardada.");
+    } catch (e) {
+      aviso(mensajeDeError(e), "error");
+    }
+    boton.disabled = false;
+  });
+
+  /* ══════════════════ Evaluaciones ══════════════════ */
+
+  async function cargarUltimaEvaluacion() {
+    const caja = document.getElementById("cajaUltimaEval");
+    if (!caja) return;
+    try {
+      const ev: any = await pb
+        .collection("evaluaciones")
+        .getFirstListItem(pb.filter("paciente = {:p}", { p: idPaciente }), {
+          sort: "-fecha",
+        });
+      caja.innerHTML = `
+        <div class="dl">
+          ${[
+            ["Fecha", fecha(ev.fecha)],
+            ["Tipo", TIPOS_EVALUACION[ev.tipo] ?? legible(ev.tipo)],
+            ["Diagnóstico", ev.diagnostico_principal],
+            ["Norwood", ev.norwood],
+            ["Ludwig", ev.ludwig],
+            ["Candidato a FUE", legible(ev.candidato_fue)],
+            ["UF estimadas", ev.uf_estimadas ? `~${ev.uf_estimadas} (estimación, no garantizado)` : ""],
+            ["Próximo control", fecha(ev.proximo_control)],
+          ].filter(([, v]) => v).map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join("")}
+        </div>
+        ${ev.impresion ? `<div class="card pad" style="margin-top:12px"><div class="eyebrow">Impresión médica</div><p style="margin:8px 0 0; white-space:pre-wrap; font-size:.92rem">${esc(ev.impresion)}</p></div>` : ""}`;
+    } catch {
+      caja.innerHTML = `<div class="vacio">Todavía no hay evaluaciones cargadas.</div>`;
+    }
+  }
+
+  async function cargarEvaluaciones() {
+    const caja = document.getElementById("listaEvaluaciones");
+    if (!caja) return;
+    caja.classList.remove("hidden");
+    document.getElementById("editorEvaluacion")!.classList.add("hidden");
+
+    let items: any[] = [];
+    try {
+      items = await pb.collection("evaluaciones").getFullList({
+        filter: pb.filter("paciente = {:p}", { p: idPaciente }),
+        sort: "-fecha",
+      });
+    } catch { /* sin permisos o sin conexión */ }
+
+    caja.innerHTML = `
+      <div class="toolbar">
+        <div class="section-title">Evaluaciones y controles</div>
+        <button class="btn btn-primary btn-sm empuja" id="nuevaEvaluacion">
+          ${ICONO.mas} Nueva evaluación
+        </button>
+      </div>
+      ${
+        items.length
+          ? `<div class="rows">${items
+              .map(
+                (ev) => `
+        <div class="row" data-eval="${esc(ev.id)}" style="cursor:pointer">
+          <span class="time tnum">${fecha(ev.fecha)}</span>
+          <div class="txt">
+            <b>${esc(TIPOS_EVALUACION[ev.tipo] ?? legible(ev.tipo))}</b>
+            <span>${esc(ev.diagnostico_principal || "Sin diagnóstico cargado")}</span>
+          </div>
+          ${ev.norwood ? `<span class="tag pill info">Norwood ${esc(ev.norwood)}</span>` : ""}
+          ${ev.ludwig ? `<span class="tag pill info">Ludwig ${esc(ev.ludwig)}</span>` : ""}
+        </div>`
+              )
+              .join("")}</div>`
+          : `<div class="vacio"><b>Todavía no hay evaluaciones</b>Cargá la de la consulta inicial para dejar registrado el examen, la tricoscopía y el plan.</div>`
+      }`;
+
+    document.getElementById("nuevaEvaluacion")?.addEventListener("click", () => abrirEvaluacion(null));
+    caja.querySelectorAll<HTMLElement>("[data-eval]").forEach((fila) => {
+      fila.addEventListener("click", async () => {
+        const ev = items.find((x) => x.id === fila.dataset.eval);
+        abrirEvaluacion(ev);
+      });
+    });
+  }
+
+  function abrirEvaluacion(ev: any | null) {
+    document.getElementById("listaEvaluaciones")!.classList.add("hidden");
+    const editor = document.getElementById("editorEvaluacion")!;
+    editor.classList.remove("hidden");
+
+    const datos = ev?.datos ?? {};
+    const opciones = (lista: string[], actual?: string) =>
+      `<option value="">—</option>` +
+      lista.map((v) => `<option value="${esc(v)}"${actual === v ? " selected" : ""}>${esc(v)}</option>`).join("");
+
+    editor.innerHTML = `
+      <div class="toolbar">
+        <button class="btn btn-ghost btn-sm" id="volverLista">${ICONO.volver} Volver al listado</button>
+        <div class="section-title">${ev ? "Editar evaluación" : "Nueva evaluación"}</div>
+        ${ev ? `<button class="btn btn-danger btn-sm empuja" id="borrarEval">${ICONO.borrar} Eliminar</button>` : ""}
+      </div>
+
+      <div class="card pad">
+        <div class="form-grid">
+          <div class="field">
+            <label for="evFecha">Fecha <span class="req">*</span></label>
+            <input type="date" id="evFecha" value="${esc(fechaInput(ev?.fecha) || hoyInput())}">
+          </div>
+          <div class="field">
+            <label for="evTipo">Tipo <span class="req">*</span></label>
+            <select id="evTipo">
+              ${Object.entries(TIPOS_EVALUACION)
+                .map(([k, v]) => `<option value="${esc(k)}"${ev?.tipo === k ? " selected" : ""}>${esc(v)}</option>`)
+                .join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="evDx">Diagnóstico principal</label>
+            <input type="text" id="evDx" value="${esc(ev?.diagnostico_principal ?? "")}">
+          </div>
+          <div class="field">
+            <label for="evNorwood">Norwood-Hamilton</label>
+            <select id="evNorwood">${opciones(["I","II","III","III vertex","IV","V","VI","VII"], ev?.norwood)}</select>
+          </div>
+          <div class="field">
+            <label for="evLudwig">Ludwig</label>
+            <select id="evLudwig">${opciones(["I","II","III"], ev?.ludwig)}</select>
+          </div>
+          <div class="field">
+            <label for="evSinclair">Sinclair</label>
+            <select id="evSinclair">${opciones(["1","2","3","4","5"], ev?.sinclair)}</select>
+          </div>
+          <div class="field">
+            <label for="evCandidato">¿Candidato a FUE?</label>
+            <select id="evCandidato">${opciones(["si","no","pendiente","requiere_tratamiento_previo"], ev?.candidato_fue)}</select>
+          </div>
+          <div class="field">
+            <label for="evUF">Unidades foliculares estimadas</label>
+            <input type="number" id="evUF" min="0" step="50" value="${esc(ev?.uf_estimadas ?? "")}">
+            <div class="ayuda">Es una estimación de trabajo, nunca un resultado prometido.</div>
+          </div>
+          <div class="field">
+            <label for="evProximo">Próximo control</label>
+            <input type="date" id="evProximo" value="${esc(fechaInput(ev?.proximo_control))}">
+          </div>
+        </div>
+      </div>
+
+      <div id="formEvaluacion"></div>
+
+      <div class="card pad">
+        <div class="section-title">Impresión diagnóstica / conclusión médica</div>
+        <div class="field">
+          <textarea id="evImpresion" style="min-height:150px" placeholder="Diagnóstico principal · diferenciales · grado de alopecia · estado de la zona donante · pronóstico · tratamiento recomendado · estudios · necesidad de FUE · objetivos realistas · próximo control">${esc(ev?.impresion ?? "")}</textarea>
+        </div>
+      </div>
+
+      <div class="toolbar acciones">
+        <button class="btn btn-primary" id="guardarEval">${ICONO.guardar} Guardar evaluación</button>
+      </div>`;
+
+    const caja = document.getElementById("formEvaluacion")!;
+    caja.innerHTML = SECCIONES_EVALUACION.map((s) =>
+      dibujarSeccion(s, datos, { abierta: false })
+    ).join("");
+    activarFormulario(caja, () => actualizarProgresos(caja, SECCIONES_EVALUACION));
+
+    document.getElementById("volverLista")?.addEventListener("click", cargarEvaluaciones);
+
+    document.getElementById("borrarEval")?.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar esta evaluación? No se puede deshacer.")) return;
+      try {
+        await pb.collection("evaluaciones").delete(ev.id);
+        aviso("Evaluación eliminada.");
+        cargarEvaluaciones();
+        cargarUltimaEvaluacion();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+      }
+    });
+
+    document.getElementById("guardarEval")?.addEventListener("click", async () => {
+      const boton = document.getElementById("guardarEval") as HTMLButtonElement;
+      boton.disabled = true;
+      const val = (id: string) => (document.getElementById(id) as HTMLInputElement)?.value ?? "";
+      const uf = val("evUF");
+      const cuerpo: Record<string, unknown> = {
+        paciente: idPaciente,
+        fecha: val("evFecha"),
+        tipo: val("evTipo"),
+        diagnostico_principal: val("evDx"),
+        norwood: val("evNorwood"),
+        ludwig: val("evLudwig"),
+        sinclair: val("evSinclair"),
+        candidato_fue: val("evCandidato"),
+        uf_estimadas: uf ? Number(uf) : null,
+        proximo_control: val("evProximo"),
+        impresion: val("evImpresion"),
+        datos: leerFormulario(caja),
+        profesional: usuarioActual()?.id ?? null,
+      };
+      try {
+        if (ev) await pb.collection("evaluaciones").update(ev.id, cuerpo);
+        else await pb.collection("evaluaciones").create(cuerpo);
+        aviso("Evaluación guardada.");
+        cargarEvaluaciones();
+        cargarUltimaEvaluacion();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+        boton.disabled = false;
+      }
+    });
+  }
+
+  /* ══════════════════ Cuenta del paciente ══════════════════ */
+
+  async function cargarCuenta() {
+    const caja = document.getElementById("cajaCuenta");
+    if (!caja) return;
+    caja.innerHTML = `<div class="vacio">Cargando…</div>`;
+
+    let movimientos: any[] = [];
+    try {
+      movimientos = await pb.collection("movimientos").getFullList({
+        filter: pb.filter("paciente = {:p}", { p: idPaciente }),
+        sort: "-fecha",
+      });
+    } catch {
+      caja.innerHTML = `<div class="vacio">No se pudieron cargar los movimientos.</div>`;
+      return;
+    }
+
+    if (!movimientos.length) {
+      caja.innerHTML = `<div class="vacio"><b>Este paciente todavía no tiene cobros registrados</b>Se cargan desde Finanzas, o con el enlace de acá arriba.</div>`;
+      return;
+    }
+
+    const cobrado = movimientos
+      .filter((m) => m.tipo === "ingreso")
+      .reduce((s, m) => s + (m.monto || 0), 0);
+
+    caja.innerHTML = `
+      <div class="stat" style="margin-bottom:var(--esp-3)">
+        <div class="v tnum" style="color:var(--good)">${esc(montoARS(cobrado))}</div>
+        <div class="k">Total cobrado a este paciente</div>
+      </div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Fecha</th><th>Concepto</th><th>Medio</th><th style="text-align:right">Monto</th></tr></thead>
+          <tbody>
+            ${movimientos
+              .map((m) => {
+                const esIngreso = m.tipo === "ingreso";
+                return `<tr style="cursor:default">
+                  <td class="tnum">${fecha(m.fecha)}</td>
+                  <td><b style="font-weight:600">${esc(m.concepto)}</b>${m.categoria ? `<div style="color:var(--muted); font-size:.78rem">${esc(CATEGORIAS[m.categoria] ?? m.categoria)}</div>` : ""}</td>
+                  <td style="color:var(--muted)">${esc(MEDIOS_PAGO[m.medio_pago] ?? "—")}</td>
+                  <td style="text-align:right"><span class="tnum" style="font-weight:600; white-space:nowrap; color:${esIngreso ? "var(--good)" : "var(--bad)"}">${esIngreso ? "+" : "−"} ${esc(montoARS(m.monto ?? 0))}</span></td>
+                </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  /* ══════════════════ Fotos ══════════════════ */
+
+  function llenarSelectoresDeFoto() {
+    const selMomento = document.getElementById("momentoSubida") as HTMLSelectElement;
+    const selToma = document.getElementById("tomaSubida") as HTMLSelectElement;
+    if (!selMomento || !selToma) return;
+    selMomento.innerHTML = ORDEN_MOMENTOS.map(
+      (k) => `<option value="${esc(k)}">${esc(MOMENTOS[k])}</option>`
+    ).join("");
+    selToma.innerHTML = Object.entries(TOMAS)
+      .map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`)
+      .join("");
+    (document.getElementById("fechaSubida") as HTMLInputElement).value = hoyInput();
+  }
+
+  async function traerFotos() {
+    try {
+      fotos = await pb.collection("fotos").getFullList({
+        filter: pb.filter("paciente = {:p}", { p: idPaciente }),
+        sort: "-fecha,-created",
+      });
+    } catch {
+      fotos = [];
+    }
+    return fotos;
+  }
+
+  async function cargarGaleria() {
+    const caja = document.getElementById("galeria");
+    if (!caja) return;
+    caja.innerHTML = `<div class="vacio">Cargando fotos…</div>`;
+    await traerFotos();
+
+    if (!fotos.length) {
+      caja.innerHTML = `<div class="vacio"><b>Todavía no hay fotos</b>Subí las tomas de la consulta inicial para tener el punto de partida.</div>`;
+      return;
+    }
+
+    // Agrupadas por momento del tratamiento, en orden cronológico.
+    const grupos = new Map<string, any[]>();
+    for (const f of fotos) {
+      const k = f.momento || "otro";
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k)!.push(f);
+    }
+    const ordenados = [...grupos.entries()].sort(
+      (a, b) => ORDEN_MOMENTOS.indexOf(a[0]) - ORDEN_MOMENTOS.indexOf(b[0])
+    );
+
+    caja.innerHTML = ordenados
+      .map(
+        ([momento, lista]) => `
+      <div class="grupo-fotos">
+        <div class="section-title">
+          ${esc(MOMENTOS[momento] ?? legible(momento))}
+          <span class="hint">${lista.length} foto${lista.length === 1 ? "" : "s"}</span>
+        </div>
+        <div class="evo-grid">
+          ${lista
+            .map(
+              (f) => `
+            <div class="evo" data-foto="${esc(f.id)}">
+              <div class="ph">
+                <span class="badge">${esc(TOMAS[f.toma] ?? "Foto")}</span>
+                <img data-mini="${esc(f.id)}" alt="Foto ${esc(TOMAS[f.toma] ?? "")}">
+              </div>
+              <div class="cap"><b>${esc(TOMAS[f.toma] ?? "—")}</b><span>${fecha(f.fecha) || fecha(f.created)}</span></div>
+            </div>`
+            )
+            .join("")}
+        </div>
+      </div>`
+      )
+      .join("");
+
+    // Las miniaturas se bajan con permiso; por eso no van en el src directo.
+    for (const f of fotos) {
+      const img = caja.querySelector<HTMLImageElement>(`[data-mini="${CSS.escape(f.id)}"]`);
+      if (!img) continue;
+      imagen(f, "archivo", { thumb: "320x240" })
+        .then((url) => { img.src = url; })
+        .catch(() => { img.alt = "No se pudo cargar"; });
+    }
+
+    caja.querySelectorAll<HTMLElement>("[data-foto]").forEach((tarjeta) => {
+      tarjeta.addEventListener("click", () => abrirDetalleFoto(tarjeta.dataset.foto!));
+    });
+  }
+
+  async function subirFotos(archivos: FileList | File[]) {
+    const lista = [...archivos].filter((a) => a.type.startsWith("image/"));
+    if (!lista.length) return;
+
+    const momento = (document.getElementById("momentoSubida") as HTMLSelectElement).value;
+    const toma = (document.getElementById("tomaSubida") as HTMLSelectElement).value;
+    const fechaFoto = (document.getElementById("fechaSubida") as HTMLInputElement).value;
+    const progreso = document.getElementById("progresoSubida")!;
+
+    let hechas = 0;
+    for (const [indice, archivo] of lista.entries()) {
+      progreso.textContent = `Subiendo ${hechas + 1} de ${lista.length}…`;
+      try {
+        const liviana = await achicarFoto(archivo);
+
+        // Se renombra a algo corto y descriptivo. Las fotos que llegan por
+        // WhatsApp traen nombres larguísimos ("whats_app_image_2026_08_18_at
+        // _12_05_...jpeg"); sumados a la carpeta de miniaturas, la ruta pasa
+        // el límite de 260 caracteres de Windows y después falla la copia de
+        // seguridad. Con este nombre el archivo además se entiende solo.
+        const extension = liviana.type === "image/png" ? "png" : "jpg";
+        const nombreCorto = `${toma}-${fechaFoto || hoyInput()}-${indice + 1}.${extension}`;
+        const paraSubir = new File([liviana], nombreCorto, { type: liviana.type });
+
+        const cuerpo = new FormData();
+        cuerpo.append("paciente", idPaciente!);
+        cuerpo.append("archivo", paraSubir);
+        cuerpo.append("toma", toma);
+        cuerpo.append("momento", momento);
+        if (fechaFoto) cuerpo.append("fecha", fechaFoto);
+        // Solo se manda si hay usuario: PocketBase rechaza un texto vacío en un
+        // campo de relación.
+        const quien = usuarioActual()?.id;
+        if (quien) cuerpo.append("subido_por", quien);
+        await pb.collection("fotos").create(cuerpo);
+        hechas++;
+      } catch (e) {
+        aviso(`No se pudo subir ${archivo.name}: ${mensajeDeError(e)}`, "error");
+      }
+    }
+    progreso.textContent = "";
+    if (hechas) {
+      aviso(`${hechas} foto${hechas === 1 ? "" : "s"} guardada${hechas === 1 ? "" : "s"}.`);
+      cargarGaleria();
+    }
+  }
+
+  function conectarSubidaDeFotos() {
+    const zona = document.getElementById("zonaFotos");
+    const input = document.getElementById("archivoFotos") as HTMLInputElement;
+    if (!zona || !input) return;
+
+    // El <input file> está DENTRO de la zona. Si no cortamos acá la propagación,
+    // el clic que hacemos sobre el input vuelve a subir hasta la zona, la zona
+    // vuelve a pedir el input… y el diálogo de archivos se abre dos veces.
+    input.addEventListener("click", (e) => e.stopPropagation());
+
+    zona.addEventListener("click", () => input.click());
+    zona.addEventListener("keydown", (e) => {
+      if ((e as KeyboardEvent).key === "Enter" || (e as KeyboardEvent).key === " ") {
+        e.preventDefault();
+        input.click();
+      }
+    });
+    input.addEventListener("change", () => {
+      if (input.files?.length) subirFotos(input.files);
+      input.value = "";
+    });
+
+    ["dragenter", "dragover"].forEach((ev) =>
+      zona.addEventListener(ev, (e) => {
+        e.preventDefault();
+        zona.classList.add("drag");
+      })
+    );
+    ["dragleave", "drop"].forEach((ev) =>
+      zona.addEventListener(ev, (e) => {
+        e.preventDefault();
+        zona.classList.remove("drag");
+      })
+    );
+    zona.addEventListener("drop", (e) => {
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt?.files?.length) subirFotos(dt.files);
+    });
+  }
+
+  /** Vista grande de una foto, con opción de reclasificarla, marcarla o borrarla. */
+  async function abrirDetalleFoto(idFoto: string) {
+    const f = fotos.find((x) => x.id === idFoto);
+    if (!f) return;
+
+    const dlg = document.createElement("dialog");
+    dlg.className = "modal";
+    dlg.innerHTML = `
+      <div class="modal-head">
+        <h3>${esc(TOMAS[f.toma] ?? "Foto")} · ${esc(MOMENTOS[f.momento] ?? "")}</h3>
+        <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="fotoGrande" style="width:100%; border-radius:12px; display:block; background:var(--card-2)" alt="">
+        <div class="form-grid" style="margin-top:var(--esp-3)">
+          <div class="field">
+            <label>Toma</label>
+            <select id="editToma">${Object.entries(TOMAS).map(([k, v]) => `<option value="${esc(k)}"${f.toma === k ? " selected" : ""}>${esc(v)}</option>`).join("")}</select>
+          </div>
+          <div class="field">
+            <label>Momento</label>
+            <select id="editMomento">${ORDEN_MOMENTOS.map((k) => `<option value="${esc(k)}"${f.momento === k ? " selected" : ""}>${esc(MOMENTOS[k])}</option>`).join("")}</select>
+          </div>
+          <div class="field">
+            <label>Fecha</label>
+            <input type="date" id="editFecha" value="${esc(fechaInput(f.fecha))}">
+          </div>
+          <div class="field completo">
+            <label>Notas</label>
+            <input type="text" id="editNotas" value="${esc(f.notas ?? "")}">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-danger btn-sm" id="borrarFoto">${ICONO.borrar} Eliminar</button>
+        <button class="btn btn-ghost btn-sm" id="irAMarcar">${ICONO.lapiz} Marcar sobre esta foto</button>
+        <button class="btn btn-primary btn-sm" id="guardarFoto">${ICONO.guardar} Guardar</button>
+      </div>`;
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    let urlGrande = "";
+    imagen(f, "archivo", { thumb: "800x600" })
+      .then((url) => {
+        urlGrande = url;
+        (dlg.querySelector("#fotoGrande") as HTMLImageElement).src = url;
+      })
+      .catch(() => {});
+
+    const cerrar = () => {
+      liberar(urlGrande);
+      dlg.close();
+      dlg.remove();
+    };
+    dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+    dlg.addEventListener("close", () => liberar(urlGrande));
+
+    dlg.querySelector("#guardarFoto")?.addEventListener("click", async () => {
+      try {
+        await pb.collection("fotos").update(f.id, {
+          toma: (dlg.querySelector("#editToma") as HTMLSelectElement).value,
+          momento: (dlg.querySelector("#editMomento") as HTMLSelectElement).value,
+          fecha: (dlg.querySelector("#editFecha") as HTMLInputElement).value,
+          notas: (dlg.querySelector("#editNotas") as HTMLInputElement).value,
+        });
+        aviso("Foto actualizada.");
+        cerrar();
+        cargarGaleria();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+      }
+    });
+
+    dlg.querySelector("#borrarFoto")?.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar esta foto? También se borran los marcados hechos sobre ella.")) return;
+      try {
+        await pb.collection("fotos").delete(f.id);
+        aviso("Foto eliminada.");
+        cerrar();
+        cargarGaleria();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+      }
+    });
+
+    dlg.querySelector("#irAMarcar")?.addEventListener("click", async () => {
+      cerrar();
+      // Se espera a que la tira de fotos esté lista antes de abrir el lienzo:
+      // con un temporizador a ojo, en una ficha con muchas fotos a veces
+      // llegaba antes de tiempo y no abría nada.
+      mostrarPestañaSinCargar("marcado");
+      await cargarTiraFotos();
+      await abrirMarcador(f.id);
+    });
+  }
+
+  /* ══════════════════ Marcado sobre la foto ══════════════════ */
+
+  let marcador: Marcador | null = null;
+  let urlFotoMarcada = "";
+  let marcadoAbierto: any = null;
+
+  async function cargarTiraFotos() {
+    const tira = document.getElementById("tiraFotos");
+    if (!tira) return;
+    await traerFotos();
+
+    if (!fotos.length) {
+      tira.innerHTML = `<div class="vacio"><b>Primero hay que subir una foto</b>Andá a la pestaña “Fotos”, subí la foto del paciente y volvé acá para marcarla.</div>`;
+      document.getElementById("areaMarcado")!.innerHTML = "";
+      return;
+    }
+
+    tira.innerHTML = `
+      <div class="section-title">Elegí la foto <span class="hint">${fotos.length} disponibles</span></div>
+      <div class="evo-grid">
+        ${fotos
+          .map(
+            (f) => `
+          <div class="evo" data-elegir="${esc(f.id)}">
+            <div class="ph">
+              <span class="badge">${esc(TOMAS[f.toma] ?? "Foto")}</span>
+              <img data-tira="${esc(f.id)}" alt="">
+            </div>
+            <div class="cap"><b>${esc(MOMENTOS[f.momento] ?? "—")}</b><span>${fecha(f.fecha) || fecha(f.created)}</span></div>
+          </div>`
+          )
+          .join("")}
+      </div>`;
+
+    for (const f of fotos) {
+      const img = tira.querySelector<HTMLImageElement>(`[data-tira="${CSS.escape(f.id)}"]`);
+      if (img) imagen(f, "archivo", { thumb: "320x240" }).then((u) => { img.src = u; }).catch(() => {});
+    }
+
+    tira.querySelectorAll<HTMLElement>("[data-elegir]").forEach((el) => {
+      el.addEventListener("click", () => abrirMarcador(el.dataset.elegir!));
+    });
+  }
+
+  async function abrirMarcador(idFoto: string) {
+    const f = fotos.find((x) => x.id === idFoto);
+    if (!f) return;
+
+    const area = document.getElementById("areaMarcado")!;
+    area.innerHTML = `<div class="vacio">Cargando la foto…</div>`;
+
+    // Marcados que ya existen sobre esta foto.
+    let previos: any[] = [];
+    try {
+      previos = await pb.collection("marcados").getFullList({
+        filter: pb.filter("foto = {:f}", { f: idFoto }),
+        sort: "-created",
+      });
+    } catch { /* sin marcados */ }
+
+    area.innerHTML = `
+      <div class="marker">
+        <div class="canvas-shell" id="shellMarcado">
+          <img class="foto" id="fotoMarcado" alt="Foto del paciente">
+          <canvas></canvas>
+        </div>
+        <div class="tools">
+          <div class="tool-block">
+            <h4>Color</h4>
+            <div class="swatches" id="paleta">
+              ${COLORES_MARCADO.map(
+                (c, i) =>
+                  `<button type="button" class="sw${i === 0 ? " active" : ""}" style="background:${c.color}" data-color="${c.color}" title="${esc(c.nombre)}" aria-label="${esc(c.nombre)}"></button>`
+              ).join("")}
+            </div>
+            <div class="sw-leyenda" id="leyendaColor">${esc(COLORES_MARCADO[0].nombre)}</div>
+          </div>
+          <div class="tool-block">
+            <h4>Trazo</h4>
+            <div class="sizes" id="grosores">
+              <button type="button" class="sz" data-grosor="3"><i style="width:6px;height:6px"></i></button>
+              <button type="button" class="sz active" data-grosor="6"><i style="width:12px;height:12px"></i></button>
+              <button type="button" class="sz" data-grosor="12"><i style="width:18px;height:18px"></i></button>
+            </div>
+          </div>
+          <div class="tool-block tool-actions">
+            <button class="btn btn-ghost btn-sm" id="verSinDibujo">${ICONO.ojo} Ver foto limpia</button>
+            <button class="btn btn-ghost btn-sm" id="deshacer">${ICONO.deshacer} Deshacer</button>
+            <button class="btn btn-ghost btn-sm" id="limpiar">${ICONO.borrar} Limpiar todo</button>
+            <button class="btn btn-primary btn-sm" id="guardarMarcado">${ICONO.guardar} Guardar en la ficha</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="marcadosPrevios"></div>`;
+
+    // La foto se baja con permiso y se usa como imagen local: si no, el navegador
+    // no deja exportar el PNG del marcado.
+    liberar(urlFotoMarcada);
+    try {
+      urlFotoMarcada = await imagen(f, "archivo");
+    } catch (e) {
+      area.innerHTML = `<div class="vacio">No se pudo cargar la foto.</div>`;
+      return;
+    }
+
+    const img = document.getElementById("fotoMarcado") as HTMLImageElement;
+    await new Promise<void>((listo) => {
+      img.onload = () => listo();
+      img.onerror = () => listo();
+      img.src = urlFotoMarcada;
+    });
+
+    marcador?.destruir();
+    marcador = new Marcador(document.getElementById("shellMarcado")!);
+    marcadoAbierto = null;
+
+    // Si ya había un marcado, se abre el más reciente para poder seguir editándolo.
+    if (previos.length) {
+      marcadoAbierto = previos[0];
+      marcador.cargar(previos[0].trazos);
+    }
+
+    dibujarPrevios(previos);
+
+    // --- Herramientas ---
+    document.querySelectorAll<HTMLElement>("#paleta .sw").forEach((b) => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll("#paleta .sw").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        marcador!.color = b.dataset.color!;
+        const nombre = COLORES_MARCADO.find((c) => c.color === b.dataset.color)?.nombre ?? "";
+        document.getElementById("leyendaColor")!.textContent = nombre;
+      });
+    });
+    document.querySelectorAll<HTMLElement>("#grosores .sz").forEach((b) => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll("#grosores .sz").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        marcador!.grosor = Number(b.dataset.grosor);
+      });
+    });
+    document.getElementById("deshacer")?.addEventListener("click", () => marcador!.deshacer());
+    document.getElementById("limpiar")?.addEventListener("click", () => {
+      if (marcador!.vacio || confirm("¿Borrar todo el dibujo de esta foto?")) marcador!.limpiar();
+    });
+
+    const ojo = document.getElementById("verSinDibujo")!;
+    let visible = true;
+    ojo.addEventListener("click", () => {
+      visible = !visible;
+      marcador!.mostrarDibujo(visible);
+      ojo.innerHTML = visible
+        ? `${ICONO.ojo} Ver foto limpia`
+        : `${ICONO.ojo} Ver con el dibujo`;
+    });
+
+    document.getElementById("guardarMarcado")?.addEventListener("click", () => guardarMarcado(f));
+  }
+
+  async function guardarMarcado(f: any) {
+    const boton = document.getElementById("guardarMarcado") as HTMLButtonElement;
+    if (!marcador || marcador.vacio) {
+      aviso("Todavía no hay nada dibujado sobre la foto.", "error");
+      return;
+    }
+    boton.disabled = true;
+    try {
+      // Se guardan las dos cosas: los trazos (para poder seguir editando más
+      // adelante) y una imagen combinada lista para mostrar o imprimir.
+      const png = await marcador.exportarPNG();
+      const cuerpo = new FormData();
+      cuerpo.append("foto", f.id);
+      cuerpo.append("paciente", idPaciente!);
+      cuerpo.append("titulo", `${TOMAS[f.toma] ?? "Foto"} · ${fecha(new Date().toISOString())}`);
+      cuerpo.append("trazos", JSON.stringify(marcador.trazos));
+      cuerpo.append("fecha", hoyInput());
+      const quien = usuarioActual()?.id;
+      if (quien) cuerpo.append("creado_por", quien);
+      cuerpo.append("render", new File([png], `marcado-${f.id}.png`, { type: "image/png" }));
+
+      marcadoAbierto = marcadoAbierto
+        ? await pb.collection("marcados").update(marcadoAbierto.id, cuerpo)
+        : await pb.collection("marcados").create(cuerpo);
+
+      aviso("Marcado guardado en la ficha.");
+      const previos = await pb.collection("marcados").getFullList({
+        filter: pb.filter("foto = {:f}", { f: f.id }),
+        sort: "-created",
+      });
+      dibujarPrevios(previos);
+    } catch (e) {
+      aviso(mensajeDeError(e), "error");
+    }
+    boton.disabled = false;
+  }
+
+  function dibujarPrevios(previos: any[]) {
+    const caja = document.getElementById("marcadosPrevios");
+    if (!caja) return;
+    if (!previos.length) {
+      caja.innerHTML = `<p style="color:var(--muted); font-size:.84rem">Todavía no hay marcados guardados sobre esta foto.</p>`;
+      return;
+    }
+    caja.innerHTML = `
+      <div class="section-title">
+        Marcados guardados de esta foto
+        <span class="hint">se pueden volver a abrir y corregir</span>
+      </div>
+      <div class="evo-grid">
+        ${previos
+          .map(
+            (m) => `
+          <div class="evo" data-marcado="${esc(m.id)}">
+            <div class="ph">
+              <span class="badge marcado">Marcado</span>
+              <img data-render="${esc(m.id)}" alt="">
+            </div>
+            <div class="cap"><b>${esc(m.titulo || "Marcado")}</b><span>${fecha(m.created)}</span></div>
+          </div>`
+          )
+          .join("")}
+      </div>
+      <p style="color:var(--muted); font-size:.8rem; margin-top:10px">
+        Al abrir uno, el dibujo vuelve al lienzo y “Guardar” actualiza ese mismo
+        marcado. Para dejar una propuesta nueva sin pisar la anterior, primero
+        tocá “Nuevo marcado”.
+      </p>
+      <button class="btn btn-ghost btn-sm" id="nuevoMarcado" style="margin-top:8px">${ICONO.mas} Nuevo marcado en blanco</button>`;
+
+    for (const m of previos) {
+      const img = caja.querySelector<HTMLImageElement>(`[data-render="${CSS.escape(m.id)}"]`);
+      if (img && m.render) {
+        imagen(m, "render", { thumb: "320x240" }).then((u) => { img.src = u; }).catch(() => {});
+      }
+    }
+
+    caja.querySelectorAll<HTMLElement>("[data-marcado]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const m = previos.find((x) => x.id === el.dataset.marcado);
+        if (!m || !marcador) return;
+        marcadoAbierto = m;
+        marcador.cargar(m.trazos);
+        aviso("Marcado abierto. Podés seguir dibujando y guardar.");
+        document.getElementById("shellMarcado")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+
+    document.getElementById("nuevoMarcado")?.addEventListener("click", () => {
+      marcadoAbierto = null;
+      marcador?.limpiar();
+      aviso("Lienzo en blanco. Lo que dibujes se guarda como un marcado nuevo.");
+    });
+  }
+
+  /* ══════════════════ Arranque ══════════════════ */
+
+  if (clinico) {
+    llenarSelectoresDeFoto();
+    conectarSubidaDeFotos();
+  }
+  cargarPaciente();
+</script>

@@ -1,0 +1,46 @@
+# ============================================================================
+#  ESTE REPOSITORIO ES PUBLICO.
+#  Nunca van aca: datos de pacientes, respaldos, contrasenas ni claves.
+#  Las claves viven en ../CAPINOA-claves-privadas.txt (fuera de esta carpeta)
+#  y en las variables de entorno de Dokploy.
+# ============================================================================
+
+# Datos de PocketBase: la base real y las fotos de los pacientes.
+pb_data/
+pb_data_*/
+pb_data_backup*/
+
+# Copias de seguridad, paquetes de actualizacion y entregas al cliente
+respaldos/
+paquetes/
+actualizaciones/
+entrega/
+*.rar
+*.zip
+*.tar.gz
+
+# Cualquier archivo de claves que alguien deje por error aca adentro
+*claves-privadas*
+.env
+.env.*
+!web/.env.example
+
+# El binario de PocketBase se baja aparte (pesa 30 MB).
+pocketbase
+pocketbase.exe
+
+# Node / Astro
+node_modules/
+dist/
+.astro/
+
+# Pantallas compiladas: las regenera compilar / el servidor al publicar
+pb_public/
+
+# Sistema operativo y herramientas locales
+Thumbs.db
+Desktop.ini
+desktop.ini
+.DS_Store
+.claude/
+*.log

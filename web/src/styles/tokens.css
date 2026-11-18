@@ -1,0 +1,166 @@
+/* ============================================================================
+   CAPINOA · Tokens de diseño
+   ----------------------------------------------------------------------------
+   Todos los colores, sombras y radios del sistema salen de acá. Si algo hay que
+   recolorear, se cambia UNA variable y cambia en todas las pantallas.
+
+   La paleta es la de la landing aprobada por Ricardo (capinoa-boceto.html):
+   navy #12385F · blue #1E5C93 · teal #16A9B8 · teal claro #1FC4C0.
+
+   Modo oscuro: se define tres veces a propósito.
+     1. :root                                   → claro (por defecto)
+     2. @media (prefers-color-scheme: dark)     → sigue al sistema operativo
+     3. :root[data-theme="…"]                   → gana si el usuario elige a mano
+   ========================================================================== */
+
+:root {
+  --font: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system,
+    "Helvetica Neue", Arial, sans-serif;
+
+  /* marca */
+  /* Los dos colores medidos sobre el archivo original del logo (logosolo.png).
+     Los usa el isotipo y nada mas: la paleta de la interfaz (--blue/--teal/
+     --accent) viene de la landing y quedo como estaba. Son parecidos pero no
+     identicos; si alguna vez se quiere unificar todo al logo, es aca. */
+  --marca-azul: #0c54a8;
+  --marca-teal: #0d9eab;
+
+  /* Los colores con los que se DIBUJA el isotipo sobre una superficie de la
+     app. En tema claro son los de marca tal cual. En oscuro el azul se aclara:
+     el #0c54a8 sobre una tarjeta oscura queda azul sobre azul y no se ve.
+     (La barra lateral no usa esto: es navy siempre, con su propia version.) */
+  --isotipo-pelo: var(--marca-azul);
+  --isotipo-arco: var(--marca-teal);
+
+  --navy: #12385f;
+  --blue: #1e5c93;
+  --teal: #16a9b8;
+  --teal-bright: #1fc4c0;
+
+  /* superficies y texto (tema claro) */
+  --bg: #eef3f8;
+  --surface: #f7fafc;
+  --card: #ffffff;
+  --card-2: #f4f8fb;
+  --line: #e1e9f1;
+  --line-strong: #cbd8e5;
+  --ink: #182634;
+  --muted: #5e7183;
+  --faint: #8a9bab;
+  --accent: #16a9b8;
+  --accent-ink: #0c7c88;
+  --ring: rgba(22, 169, 184, 0.35);
+
+  /* estados */
+  --good: #1fa97a;
+  --good-bg: rgba(31, 169, 122, 0.12);
+  --warn: #d9902b;
+  --warn-bg: rgba(217, 144, 43, 0.14);
+  --bad: #dc5b5b;
+  --bad-bg: rgba(220, 91, 91, 0.12);
+  --info: #2f6fb0;
+  --info-bg: rgba(47, 111, 176, 0.12);
+
+  --shadow-sm: 0 1px 2px rgba(18, 56, 95, 0.06), 0 2px 8px rgba(18, 56, 95, 0.05);
+  --shadow: 0 12px 30px -14px rgba(18, 56, 95, 0.3);
+  --shadow-lg: 0 30px 60px -28px rgba(18, 56, 95, 0.45);
+
+  --r: 14px;
+  --r-sm: 10px;
+  --r-lg: 20px;
+
+  --sidebar-w: 250px;
+
+  /* ── Altura única de los controles ──────────────────────────────────────
+     Botones, campos de texto, listas desplegables y selectores comparten
+     estas dos alturas. Es lo que hace que una barra de herramientas se vea
+     prolija: si cada control trae la altura que le da su propio relleno,
+     terminan midiendo 32, 36, 42 y 44 px y la fila queda escalonada. */
+  --alto-control: 40px;
+  --alto-control-sm: 34px;
+
+  /* ── Escala tipográfica ─────────────────────────────────────────────────
+     Mismo criterio que la escala de espaciado, y por el mismo motivo: sin una
+     escala, cada pantalla inventa su tamaño. Se llegó a tener 31 tamaños de
+     letra distintos conviviendo, con diferencias de medio píxel entre varios
+     de ellos: imposibles de elegir a propósito, y suficientes para que nada
+     termine de alinearse del todo.
+
+     Siete pasos alcanzan para todo el sistema. Si algo parece necesitar un
+     tamaño intermedio, casi siempre lo que falta es jerarquía (peso o color),
+     no medio píxel más de letra. */
+  --txt-xs: 0.7rem;     /* etiquetas en mayúsculas, notas al pie          */
+  --txt-sm: 0.78rem;    /* texto secundario, ayudas, datos de apoyo       */
+  --txt-base: 0.86rem;  /* cuerpo: tablas, formularios, la mayor parte    */
+  --txt-md: 0.95rem;    /* un dato que tiene que destacar sobre el resto  */
+  --txt-lg: 1.05rem;    /* título de sección                              */
+  --txt-xl: 1.2rem;     /* título de pantalla                             */
+  --txt-2xl: 1.45rem;   /* nombre del paciente en la ficha                */
+
+  /* ── Escala de espaciado ────────────────────────────────────────────────
+     Todos los márgenes y separaciones salen de acá. Sin una escala, cada
+     pantalla inventa su número y el conjunto se ve descuidado. */
+  --esp-1: 6px;
+  --esp-2: 10px;
+  --esp-3: 16px;
+  --esp-4: 22px;
+  --esp-5: 30px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b141c;
+    --surface: #0f1b25;
+    --card: #132230;
+    --card-2: #0f1c28;
+    --line: #20323f;
+    --line-strong: #2c4150;
+    --ink: #e8f0f6;
+    --muted: #93a7b6;
+    --faint: #6c8093;
+    --accent: #22b8c6;
+    --accent-ink: #7fe0e4;
+    --ring: rgba(34, 184, 198, 0.4);
+    --good: #33c08e;
+    --good-bg: rgba(51, 192, 142, 0.15);
+    --warn: #e6a94a;
+    --warn-bg: rgba(230, 169, 74, 0.16);
+    --bad: #eb6e6e;
+    --bad-bg: rgba(235, 110, 110, 0.15);
+    --info: #5b9bd8;
+    --info-bg: rgba(91, 155, 216, 0.16);
+    --isotipo-pelo: #cfe3fa;
+    --isotipo-arco: #25bfcb;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 30px 60px -24px rgba(0, 0, 0, 0.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b141c;
+  --surface: #0f1b25;
+  --card: #132230;
+  --card-2: #0f1c28;
+  --line: #20323f;
+  --line-strong: #2c4150;
+  --ink: #e8f0f6;
+  --muted: #93a7b6;
+  --faint: #6c8093;
+  --accent: #22b8c6;
+  --accent-ink: #7fe0e4;
+  --ring: rgba(34, 184, 198, 0.4);
+  --good: #33c08e;
+  --good-bg: rgba(51, 192, 142, 0.15);
+  --warn: #e6a94a;
+  --warn-bg: rgba(230, 169, 74, 0.16);
+  --bad: #eb6e6e;
+  --bad-bg: rgba(235, 110, 110, 0.15);
+  --info: #5b9bd8;
+  --info-bg: rgba(91, 155, 216, 0.16);
+  --isotipo-pelo: #cfe3fa;
+  --isotipo-arco: #25bfcb;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 30px 60px -24px rgba(0, 0, 0, 0.7);
+}

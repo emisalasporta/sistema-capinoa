@@ -1,0 +1,522 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Agenda" subtitulo="Turnos del consultorio">
+  <section class="card pad">
+    <div class="toolbar">
+      <div class="grupo">
+        <button class="btn btn-ghost btn-icono" id="anterior" aria-label="Anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M15 18l-6-6 6-6" /></svg
+          >
+        </button>
+        <button class="btn btn-ghost" id="irHoy">Hoy</button>
+        <button class="btn btn-ghost btn-icono" id="siguiente" aria-label="Siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M9 6l6 6-6 6" /></svg
+          >
+        </button>
+        <span class="titulo-rango" id="tituloRango"></span>
+      </div>
+
+      <div class="grupo empuja">
+        <div class="switch" id="cambioVista">
+          <button type="button" data-vista="semana">Semana</button>
+          <button type="button" data-vista="mes">Mes</button>
+        </div>
+        <div class="field" style="width:152px">
+          <input type="date" id="selectorFecha" aria-label="Ir a una fecha" />
+        </div>
+        <button class="btn btn-primary" id="nuevoTurno">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M12 5v14M5 12h14" /></svg
+          >
+          Nuevo turno
+        </button>
+      </div>
+    </div>
+
+    <div id="vistaCalendario"></div>
+
+    <div class="section-title">
+      <span id="tituloDia">—</span>
+      <span class="hint" id="resumenDia"></span>
+    </div>
+
+    <div id="listaTurnos">
+      <div class="vacio">Cargando…</div>
+    </div>
+  </section>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { usuarioActual } from "../../lib/auth";
+  import {
+    esc, enlace, hora, unirFechaHora, sumarMinutos, sumarDias, sumarMeses,
+    semanaDe, mesDe, mismoMes, nombreDia, nombreMes, fecha, fechaLarga,
+    rangoDelDia, rangoEntre, hoyInput, aviso,
+    mensajeDeError, legible, TIPOS_TURNO, ESTADOS_TURNO, ICONO,
+  } from "../../lib/ui";
+
+  const params = new URLSearchParams(location.search);
+
+  let diaActivo = params.get("dia") || hoyInput();
+  let turnosDelDia: any[] = [];
+  let pacientes: any[] = [];
+  let profesionales: any[] = [];
+
+  // "semana" o "mes". Se recuerda entre visitas: cada uno se acostumbra a una.
+  let vista: "semana" | "mes" =
+    (localStorage.getItem("capinoa_vista_agenda") as "semana" | "mes") || "semana";
+
+  /* ══════════════════ Datos auxiliares ══════════════════ */
+
+  async function cargarCatalogos() {
+    try {
+      pacientes = await pb.collection("pacientes").getFullList({
+        sort: "apellido,nombre",
+        fields: "id,apellido,nombre,telefono",
+      });
+    } catch { pacientes = []; }
+    try {
+      profesionales = await pb.collection("equipo").getFullList({
+        filter: 'rol = "medico" || rol = "admin"',
+        sort: "nombre",
+      });
+    } catch { profesionales = []; }
+  }
+
+  /* ══════════════════ Calendario (semana o mes) ══════════════════ */
+
+  /** Trae los turnos de un rango de días, ya agrupados por fecha. */
+  async function turnosPorDia(desde: string, hasta: string): Promise<Record<string, any[]>> {
+    const agrupados: Record<string, any[]> = {};
+    try {
+      const items = await pb.collection("turnos").getFullList({
+        filter: rangoEntre(desde, hasta),
+        sort: "inicio",
+        expand: "paciente",
+      });
+      for (const t of items) {
+        const d = String(t.inicio).slice(0, 10);
+        (agrupados[d] ??= []).push(t);
+      }
+    } catch {
+      /* sin conexión: el calendario se dibuja vacío */
+    }
+    return agrupados;
+  }
+
+  /** Nombre corto para las etiquetas del calendario mensual. */
+  function nombreCorto(t: any): string {
+    const p = t.expand?.paciente;
+    if (p) return `${p.apellido}`;
+    return (t.nombre_libre || "Turno").split(" ")[0];
+  }
+
+  async function dibujarCalendario() {
+    const caja = document.getElementById("vistaCalendario")!;
+    const hoy = hoyInput();
+
+    document.querySelectorAll<HTMLElement>("#cambioVista button").forEach((b) =>
+      b.classList.toggle("on", b.dataset.vista === vista)
+    );
+    (document.getElementById("selectorFecha") as HTMLInputElement).value = diaActivo;
+
+    if (vista === "semana") {
+      const dias = semanaDe(diaActivo);
+      const porDia = await turnosPorDia(dias[0], dias[6]);
+      document.getElementById("tituloRango")!.textContent =
+        `${fecha(dias[0])} al ${fecha(dias[6])}`;
+
+      caja.className = "semana";
+      caja.innerHTML = dias
+        .map((d) => {
+          const cantidad = (porDia[d] ?? []).filter((t) => t.estado !== "cancelado").length;
+          const clases = ["dia-chip", d === diaActivo ? "activo" : "", d === hoy ? "hoy" : ""]
+            .filter(Boolean).join(" ");
+          return `<button class="${clases}" data-dia="${esc(d)}">
+            <span class="d">${esc(nombreDia(d))}</span>
+            <span class="n">${Number(d.slice(8, 10))}</span>
+            <span class="c">${cantidad ? cantidad + (cantidad === 1 ? " turno" : " turnos") : ""}</span>
+          </button>`;
+        })
+        .join("");
+    } else {
+      const dias = mesDe(diaActivo);
+      const porDia = await turnosPorDia(dias[0], dias[41]);
+      document.getElementById("tituloRango")!.textContent = nombreMes(diaActivo);
+
+      caja.className = "";
+      caja.innerHTML = `
+        <div class="mes-cabecera">
+          ${["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map((d) => `<span>${d}</span>`).join("")}
+        </div>
+        <div class="mes">
+          ${dias
+            .map((d) => {
+              const delDia = porDia[d] ?? [];
+              // Se muestran hasta 3 turnos por casillero; el resto se resume
+              // en "+2 más" para que la grilla no se deforme.
+              const visibles = delDia.slice(0, 3);
+              const resto = delDia.length - visibles.length;
+              const clases = [
+                "mes-dia",
+                mismoMes(d, diaActivo) ? "" : "otro-mes",
+                d === diaActivo ? "activo" : "",
+                d === hoy ? "hoy" : "",
+              ].filter(Boolean).join(" ");
+              return `<button class="${clases}" data-dia="${esc(d)}">
+                <span class="n">${Number(d.slice(8, 10))}</span>
+                ${visibles
+                  .map((t) => {
+                    const tono = ESTADOS_TURNO[t.estado]?.tono ?? "info";
+                    return `<span class="t ${esc(tono)}">${esc(hora(t.inicio))} ${esc(nombreCorto(t))}</span>`;
+                  })
+                  .join("")}
+                ${resto > 0 ? `<span class="mas">+${resto} más</span>` : ""}
+              </button>`;
+            })
+            .join("")}
+        </div>`;
+    }
+
+    caja.querySelectorAll<HTMLElement>("[data-dia]").forEach((b) => {
+      b.addEventListener("click", () => {
+        diaActivo = b.dataset.dia!;
+        refrescar();
+      });
+    });
+  }
+
+  /* ══════════════════ Turnos del día ══════════════════ */
+
+  async function dibujarDia() {
+    document.getElementById("tituloDia")!.textContent = fechaLarga(diaActivo);
+    const caja = document.getElementById("listaTurnos")!;
+    caja.innerHTML = `<div class="vacio">Cargando…</div>`;
+
+    try {
+      turnosDelDia = await pb.collection("turnos").getFullList({
+        filter: rangoDelDia(diaActivo),
+        sort: "inicio",
+        expand: "paciente,profesional",
+      });
+    } catch (e) {
+      caja.innerHTML = `<div class="vacio">No se pudieron cargar los turnos.</div>`;
+      return;
+    }
+
+    const activos = turnosDelDia.filter((t) => t.estado !== "cancelado").length;
+    document.getElementById("resumenDia")!.textContent = activos
+      ? `${activos} turno${activos === 1 ? "" : "s"}`
+      : "sin turnos";
+
+    if (!turnosDelDia.length) {
+      caja.innerHTML = `<div class="vacio"><b>No hay turnos este día</b>Tocá “Nuevo turno” para agendar uno.</div>`;
+      return;
+    }
+
+    caja.innerHTML = `<div class="rows">${turnosDelDia.map(filaTurno).join("")}</div>`;
+
+    // Cambio rápido de estado, sin abrir nada.
+    caja.querySelectorAll<HTMLSelectElement>(".estado-rapido").forEach((sel) => {
+      sel.addEventListener("change", async () => {
+        const id = sel.dataset.turno!;
+        const anterior = turnosDelDia.find((t) => t.id === id)?.estado ?? "";
+        try {
+          await pb.collection("turnos").update(id, { estado: sel.value });
+          aviso("Turno actualizado.");
+          refrescar();
+        } catch (e) {
+          sel.value = anterior;
+          aviso(mensajeDeError(e), "error");
+        }
+      });
+    });
+
+    caja.querySelectorAll<HTMLElement>("[data-editar]").forEach((b) => {
+      b.addEventListener("click", () => {
+        abrirTurno(turnosDelDia.find((t) => t.id === b.dataset.editar) ?? null);
+      });
+    });
+  }
+
+  function filaTurno(t: any): string {
+    const tipo = TIPOS_TURNO[t.tipo] ?? { texto: legible(t.tipo) || "Turno", minutos: 30 };
+    const estado = ESTADOS_TURNO[t.estado] ?? { texto: "Por confirmar", tono: "warn" };
+    const p = t.expand?.paciente;
+
+    // El nombre lleva a la ficha solo si es un paciente cargado. Recepción
+    // también puede abrirla: ve el resumen, no lo clínico.
+    const nombre = p
+      ? `<a href="${esc(enlace("/pacientes/ficha", { id: p.id }))}">${esc(p.apellido)}, ${esc(p.nombre)}</a>`
+      : esc(t.nombre_libre || "Sin nombre");
+
+    const contacto = p?.telefono || t.telefono_libre || "";
+    const profesional = t.expand?.profesional?.nombre ?? "";
+    const detalle = [tipo.texto, profesional, contacto].filter(Boolean).join(" · ");
+
+    return `
+      <div class="turno${t.estado === "cancelado" ? " cancelado" : ""}">
+        <span class="hora">
+          ${esc(hora(t.inicio))}
+          ${t.fin ? `<small>a ${esc(hora(t.fin))}</small>` : ""}
+        </span>
+        <div class="quien">
+          <b>${nombre}</b>
+          <span>${esc(detalle)}</span>
+        </div>
+        <span class="pill ${estado.tono}">${esc(estado.texto)}</span>
+        <div class="acciones">
+          <select class="estado-rapido" data-turno="${esc(t.id)}" aria-label="Cambiar estado">
+            ${Object.entries(ESTADOS_TURNO)
+              .map(([k, v]) => `<option value="${esc(k)}"${t.estado === k ? " selected" : ""}>${esc(v.texto)}</option>`)
+              .join("")}
+          </select>
+          <button class="btn btn-ghost btn-sm" data-editar="${esc(t.id)}">${ICONO.lapiz} Editar</button>
+        </div>
+      </div>`;
+  }
+
+  /* ══════════════════ Alta y edición ══════════════════ */
+
+  function abrirTurno(t: any | null, pacientePrevio?: string) {
+    const dlg = document.createElement("dialog");
+    dlg.className = "modal";
+
+    const dia = t ? String(t.inicio).slice(0, 10) : diaActivo;
+    const horaInicio = t ? hora(t.inicio) : "09:00";
+    const idPaciente = t?.paciente ?? pacientePrevio ?? "";
+
+    // Duración: si el turno ya existe se calcula de inicio→fin; si es nuevo,
+    // la sugiere el tipo elegido.
+    let duracion = TIPOS_TURNO[t?.tipo ?? "control"]?.minutos ?? 30;
+    if (t?.fin) {
+      const [h1, m1] = hora(t.inicio).split(":").map(Number);
+      const [h2, m2] = hora(t.fin).split(":").map(Number);
+      const calc = h2 * 60 + m2 - (h1 * 60 + m1);
+      if (calc > 0) duracion = calc;
+    }
+
+    dlg.innerHTML = `
+      <div class="modal-head">
+        <h3>${t ? "Editar turno" : "Nuevo turno"}</h3>
+        <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field completo">
+            <label for="tPaciente">Paciente</label>
+            <select id="tPaciente">
+              <option value="">— todavía no es paciente (escribir el nombre) —</option>
+              ${pacientes
+                .map((p) => `<option value="${esc(p.id)}"${idPaciente === p.id ? " selected" : ""}>${esc(p.apellido)}, ${esc(p.nombre)}</option>`)
+                .join("")}
+            </select>
+          </div>
+          <div class="field" id="cajaNombreLibre">
+            <label for="tNombreLibre">Nombre</label>
+            <input type="text" id="tNombreLibre" value="${esc(t?.nombre_libre ?? "")}" placeholder="Quien llamó a pedir turno">
+          </div>
+          <div class="field" id="cajaTelLibre">
+            <label for="tTelLibre">Teléfono</label>
+            <input type="text" id="tTelLibre" value="${esc(t?.telefono_libre ?? "")}">
+          </div>
+
+          <div class="field">
+            <label for="tFecha">Fecha <span class="req">*</span></label>
+            <input type="date" id="tFecha" value="${esc(dia)}">
+          </div>
+          <div class="field">
+            <label for="tHora">Hora <span class="req">*</span></label>
+            <input type="time" id="tHora" value="${esc(horaInicio)}" step="300">
+          </div>
+          <div class="field">
+            <label for="tDuracion">Duración</label>
+            <select id="tDuracion">
+              ${[15, 20, 30, 45, 60, 90, 120, 240, 480]
+                .map((m) => `<option value="${m}"${duracion === m ? " selected" : ""}>${m < 60 ? m + " min" : m / 60 + (m === 60 ? " hora" : " horas")}</option>`)
+                .join("")}
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="tTipo">Tipo</label>
+            <select id="tTipo">
+              ${Object.entries(TIPOS_TURNO)
+                .map(([k, v]) => `<option value="${esc(k)}"${(t?.tipo ?? "consulta_inicial") === k ? " selected" : ""}>${esc(v.texto)}</option>`)
+                .join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="tEstado">Estado</label>
+            <select id="tEstado">
+              ${Object.entries(ESTADOS_TURNO)
+                .map(([k, v]) => `<option value="${esc(k)}"${(t?.estado ?? "pendiente") === k ? " selected" : ""}>${esc(v.texto)}</option>`)
+                .join("")}
+            </select>
+          </div>
+          <div class="field">
+            <label for="tProfesional">Profesional</label>
+            <select id="tProfesional">
+              <option value="">—</option>
+              ${profesionales
+                .map((m) => `<option value="${esc(m.id)}"${t?.profesional === m.id ? " selected" : ""}>${esc(m.nombre)}</option>`)
+                .join("")}
+            </select>
+          </div>
+
+          <div class="field completo">
+            <label for="tNotas">Notas</label>
+            <textarea id="tNotas" placeholder="Ej: confirmar por WhatsApp el día anterior">${esc(t?.notas ?? "")}</textarea>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        ${t ? `<button class="btn btn-danger btn-sm" id="tBorrar">${ICONO.borrar} Eliminar</button>` : ""}
+        <button class="btn btn-ghost btn-sm" id="tCancelar">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="tGuardar">${ICONO.guardar} Guardar turno</button>
+      </div>`;
+
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    const cerrar = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+    dlg.querySelector("#tCancelar")?.addEventListener("click", cerrar);
+    dlg.addEventListener("close", () => dlg.remove());
+
+    const selPaciente = dlg.querySelector("#tPaciente") as HTMLSelectElement;
+    const selTipo = dlg.querySelector("#tTipo") as HTMLSelectElement;
+    const selDuracion = dlg.querySelector("#tDuracion") as HTMLSelectElement;
+
+    // Los campos de nombre suelto solo tienen sentido si no se eligió paciente.
+    const alternarNombreLibre = () => {
+      const suelto = !selPaciente.value;
+      (dlg.querySelector("#cajaNombreLibre") as HTMLElement).style.display = suelto ? "" : "none";
+      (dlg.querySelector("#cajaTelLibre") as HTMLElement).style.display = suelto ? "" : "none";
+    };
+    selPaciente.addEventListener("change", alternarNombreLibre);
+    alternarNombreLibre();
+
+    // Al cambiar el tipo, se sugiere la duración habitual (solo en turnos nuevos:
+    // en uno existente respetamos lo que ya se había puesto).
+    if (!t) {
+      selTipo.addEventListener("change", () => {
+        const sug = TIPOS_TURNO[selTipo.value]?.minutos;
+        if (sug) selDuracion.value = String(sug);
+      });
+    }
+
+    dlg.querySelector("#tBorrar")?.addEventListener("click", async () => {
+      if (!confirm("¿Eliminar este turno?")) return;
+      try {
+        await pb.collection("turnos").delete(t.id);
+        aviso("Turno eliminado.");
+        cerrar();
+        refrescar();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+      }
+    });
+
+    dlg.querySelector("#tGuardar")?.addEventListener("click", async () => {
+      const boton = dlg.querySelector("#tGuardar") as HTMLButtonElement;
+      const v = (id: string) => (dlg.querySelector("#" + id) as HTMLInputElement)?.value ?? "";
+
+      const fechaT = v("tFecha");
+      const horaT = v("tHora");
+      if (!fechaT || !horaT) {
+        aviso("Falta la fecha o la hora del turno.", "error");
+        return;
+      }
+      if (!selPaciente.value && !v("tNombreLibre").trim()) {
+        aviso("Elegí un paciente o escribí un nombre.", "error");
+        return;
+      }
+
+      boton.disabled = true;
+      const minutos = Number(v("tDuracion")) || 30;
+      const cuerpo: Record<string, unknown> = {
+        paciente: selPaciente.value || null,
+        nombre_libre: selPaciente.value ? "" : v("tNombreLibre").trim(),
+        telefono_libre: selPaciente.value ? "" : v("tTelLibre").trim(),
+        inicio: unirFechaHora(fechaT, horaT),
+        fin: sumarMinutos(fechaT, horaT, minutos),
+        tipo: v("tTipo"),
+        estado: v("tEstado"),
+        profesional: v("tProfesional") || null,
+        notas: v("tNotas"),
+      };
+
+      try {
+        if (t) {
+          await pb.collection("turnos").update(t.id, cuerpo);
+        } else {
+          cuerpo.creado_por = usuarioActual()?.id ?? null;
+          await pb.collection("turnos").create(cuerpo);
+        }
+        aviso("Turno guardado.");
+        // Si se agendó en otro día, saltamos a ese día para que se vea.
+        diaActivo = fechaT;
+        cerrar();
+        refrescar();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+        boton.disabled = false;
+      }
+    });
+  }
+
+  /* ══════════════════ Navegación ══════════════════ */
+
+  async function refrescar() {
+    // Dejamos el día en la dirección: así se puede volver o compartir el enlace.
+    history.replaceState(null, "", enlace("/agenda", { dia: diaActivo }));
+    await dibujarCalendario();
+    await dibujarDia();
+  }
+
+  // Las flechas se mueven de a una semana o de a un mes, según la vista.
+  document.getElementById("anterior")?.addEventListener("click", () => {
+    diaActivo = vista === "mes" ? sumarMeses(diaActivo, -1) : sumarDias(diaActivo, -7);
+    refrescar();
+  });
+  document.getElementById("siguiente")?.addEventListener("click", () => {
+    diaActivo = vista === "mes" ? sumarMeses(diaActivo, 1) : sumarDias(diaActivo, 7);
+    refrescar();
+  });
+  document.querySelectorAll<HTMLElement>("#cambioVista button").forEach((b) => {
+    b.addEventListener("click", () => {
+      vista = b.dataset.vista as "semana" | "mes";
+      localStorage.setItem("capinoa_vista_agenda", vista);
+      refrescar();
+    });
+  });
+  document.getElementById("irHoy")?.addEventListener("click", () => {
+    diaActivo = hoyInput();
+    refrescar();
+  });
+  document.getElementById("selectorFecha")?.addEventListener("change", (e) => {
+    const v = (e.target as HTMLInputElement).value;
+    if (v) {
+      diaActivo = v;
+      refrescar();
+    }
+  });
+  document.getElementById("nuevoTurno")?.addEventListener("click", () => abrirTurno(null));
+
+  /* ══════════════════ Arranque ══════════════════ */
+
+  (async () => {
+    await cargarCatalogos();
+    await refrescar();
+    // Si se llegó desde la ficha con "Dar turno", se abre el alta con el
+    // paciente ya elegido.
+    const pacientePrevio = params.get("paciente");
+    if (pacientePrevio) abrirTurno(null, pacientePrevio);
+  })();
+</script>

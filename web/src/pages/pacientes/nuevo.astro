@@ -1,0 +1,253 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Paciente" subtitulo="Datos personales y de contacto">
+  <a class="btn btn-ghost btn-sm volver" href="/pacientes/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      ><path d="M15 18l-6-6 6-6" /></svg
+    >
+    Volver a pacientes
+  </a>
+
+  <form class="card pad" id="formPaciente">
+    <div class="section-title">
+      <span id="tituloForm">Nuevo paciente</span>
+      <span class="hint">Capa 1 · lo puede cargar recepción en un minuto</span>
+    </div>
+    <p class="section-desc">
+      Solo hacen falta el apellido y el nombre. Todo lo demás se puede completar
+      después, cuando el paciente venga a la consulta.
+    </p>
+
+    <div class="form-grid">
+      <div class="field">
+        <label for="apellido">Apellido <span class="req">*</span></label>
+        <input type="text" id="apellido" required autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="nombre">Nombre <span class="req">*</span></label>
+        <input type="text" id="nombre" required autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="dni">DNI</label>
+        <input type="text" id="dni" inputmode="numeric" autocomplete="off" />
+        <div class="ayuda">Si ya existe un paciente con este DNI, el sistema avisa.</div>
+      </div>
+      <div class="field">
+        <label for="fecha_nacimiento">Fecha de nacimiento</label>
+        <input type="date" id="fecha_nacimiento" />
+        <div class="ayuda" id="edadCalculada"></div>
+      </div>
+      <div class="field">
+        <label for="sexo">Sexo</label>
+        <select id="sexo">
+          <option value="">—</option>
+          <option value="masculino">Masculino</option>
+          <option value="femenino">Femenino</option>
+          <option value="otro">Otro</option>
+        </select>
+        <div class="ayuda">
+          Define qué secciones de la historia clínica se muestran (ginecológica u
+          hormonal masculina).
+        </div>
+      </div>
+      <div class="field">
+        <label for="telefono">Teléfono</label>
+        <input type="text" id="telefono" autocomplete="off" placeholder="383 4-55 1290" />
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="ocupacion">Profesión / actividad</label>
+        <input type="text" id="ocupacion" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="domicilio">Domicilio</label>
+        <input type="text" id="domicilio" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="localidad">Localidad</label>
+        <input type="text" id="localidad" autocomplete="off" value="San Fernando del Valle de Catamarca" />
+      </div>
+    </div>
+
+    <div class="section-title">Consulta y seguimiento</div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="fecha_primera_consulta">Fecha de la primera consulta</label>
+        <input type="date" id="fecha_primera_consulta" />
+      </div>
+      <div class="field">
+        <label for="estado">Estado</label>
+        <select id="estado">
+          <option value="consulta_inicial">Consulta inicial</option>
+          <option value="en_evaluacion">En evaluación</option>
+          <option value="en_tratamiento">En tratamiento</option>
+          <option value="candidato_fue">Candidato a FUE</option>
+          <option value="programado_cirugia">Cirugía programada</option>
+          <option value="post_operatorio">Post-operatorio</option>
+          <option value="seguimiento">En seguimiento</option>
+          <option value="alta">Alta</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="medico">Médico evaluador</label>
+        <select id="medico">
+          <option value="">—</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="como_llego">¿Cómo llegó a CAPINOA?</label>
+        <select id="como_llego">
+          <option value="">—</option>
+          <option value="instagram">Instagram</option>
+          <option value="facebook">Facebook</option>
+          <option value="google">Google</option>
+          <option value="recomendacion">Recomendación</option>
+          <option value="publicidad">Publicidad</option>
+          <option value="paso_por_el_consultorio">Pasó por el consultorio</option>
+          <option value="otro">Otro</option>
+        </select>
+      </div>
+      <div class="field completo">
+        <label for="como_llego_detalle">Detalle de cómo llegó</label>
+        <input type="text" id="como_llego_detalle" placeholder="Ej: lo recomendó Damián Torres" />
+      </div>
+      <div class="field completo">
+        <label for="alergias">Alergias</label>
+        <input type="text" id="alergias" placeholder="Ej: penicilina, látex. Escribir “ninguna conocida” si no tiene." />
+        <div class="ayuda">Se muestra destacado en la ficha: hay que verlo antes de cualquier procedimiento.</div>
+      </div>
+      <div class="field completo">
+        <label for="observaciones">Observaciones administrativas</label>
+        <textarea
+          id="observaciones"
+          placeholder="Ej: prefiere que lo llamen a la tarde. (Acá NO van datos clínicos: eso va en la historia clínica.)"
+        ></textarea>
+      </div>
+    </div>
+
+    <div class="toolbar acciones">
+      <a class="btn btn-ghost" href="/pacientes/">Cancelar</a>
+      <button class="btn btn-primary" type="submit" id="botonGuardar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          ><path d="M5 12l5 5L20 7" /></svg
+        >
+        Guardar paciente
+      </button>
+    </div>
+  </form>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { usuarioActual } from "../../lib/auth";
+  import { aviso, mensajeDeError, edad, fechaInput, hoyInput, esc, enlace } from "../../lib/ui";
+
+  const id = new URLSearchParams(location.search).get("id");
+  const esEdicion = Boolean(id);
+  const form = document.getElementById("formPaciente") as HTMLFormElement;
+  const boton = document.getElementById("botonGuardar") as HTMLButtonElement;
+
+  const campo = (k: string) => document.getElementById(k) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
+  const CAMPOS = [
+    "apellido", "nombre", "dni", "fecha_nacimiento", "sexo", "telefono", "email",
+    "ocupacion", "domicilio", "localidad", "fecha_primera_consulta", "estado",
+    "medico", "como_llego", "como_llego_detalle", "alergias", "observaciones",
+  ];
+
+  if (esEdicion) {
+    document.getElementById("tituloForm")!.textContent = "Editar paciente";
+    boton.innerHTML = boton.innerHTML.replace("Guardar paciente", "Guardar cambios");
+  } else {
+    (campo("fecha_primera_consulta") as HTMLInputElement).value = hoyInput();
+  }
+
+  // Mostrar la edad debajo de la fecha de nacimiento.
+  function refrescarEdad() {
+    const v = (campo("fecha_nacimiento") as HTMLInputElement).value;
+    const años = edad(v);
+    document.getElementById("edadCalculada")!.textContent =
+      años !== null ? `${años} años` : "";
+  }
+  campo("fecha_nacimiento").addEventListener("change", refrescarEdad);
+
+  // Cargar los médicos disponibles.
+  (async () => {
+    try {
+      const medicos = await pb.collection("equipo").getFullList({
+        filter: 'rol = "medico" || rol = "admin"',
+        sort: "nombre",
+      });
+      const select = campo("medico") as HTMLSelectElement;
+      select.innerHTML =
+        `<option value="">—</option>` +
+        medicos.map((m: any) => `<option value="${esc(m.id)}">${esc(m.nombre)}</option>`).join("");
+
+      // Por defecto, el médico que está usando el sistema.
+      const yo = usuarioActual();
+      if (!esEdicion && yo && (yo.rol === "medico" || yo.rol === "admin")) select.value = yo.id;
+    } catch {
+      /* si falla, queda el selector vacío y se puede guardar igual */
+    }
+  })();
+
+  // Si es edición, traer el paciente y llenar el formulario.
+  (async () => {
+    if (!esEdicion) return;
+    try {
+      const p: any = await pb.collection("pacientes").getOne(id!);
+      for (const k of CAMPOS) {
+        const el = campo(k);
+        if (!el) continue;
+        const valor = p[k];
+        if (k === "fecha_nacimiento" || k === "fecha_primera_consulta") {
+          (el as HTMLInputElement).value = fechaInput(valor);
+        } else {
+          el.value = valor ?? "";
+        }
+      }
+      refrescarEdad();
+    } catch (e) {
+      aviso("No se encontró el paciente.", "error");
+    }
+  })();
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    boton.disabled = true;
+
+    const datos: Record<string, unknown> = {};
+    for (const k of CAMPOS) datos[k] = campo(k)?.value ?? "";
+
+    // PocketBase no acepta "" en una relación: tiene que ir null.
+    if (!datos.medico) datos.medico = null;
+
+    try {
+      let guardado: any;
+      if (esEdicion) {
+        guardado = await pb.collection("pacientes").update(id!, datos);
+      } else {
+        datos.origen = "carga_manual";
+        datos.creado_por = usuarioActual()?.id ?? null;
+        guardado = await pb.collection("pacientes").create(datos);
+      }
+      aviso("Paciente guardado.");
+      location.href = enlace("/pacientes/ficha", { id: guardado.id });
+    } catch (err) {
+      const texto = mensajeDeError(err);
+      // El índice único de DNI rebota los duplicados: lo explicamos en criollo.
+      aviso(
+        texto.toLowerCase().includes("dni")
+          ? "Ya hay un paciente cargado con ese DNI. Buscalo en el listado en vez de cargarlo de nuevo."
+          : texto,
+        "error"
+      );
+      boton.disabled = false;
+    }
+  });
+</script>

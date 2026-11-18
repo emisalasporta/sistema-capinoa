@@ -1,0 +1,72 @@
+# ============================================================================
+#  Aviso si el sistema se cae.
+# ----------------------------------------------------------------------------
+#  Cada 10 minutos, desde los servidores de GitHub (o sea, DESDE AFUERA del
+#  servidor de CAPINOA), se le pregunta al sistema si está vivo. Si no
+#  contesta en dos intentos seguidos, esta tarea "falla" y GitHub le manda un
+#  correo de aviso al dueño del repositorio (Emiliano). No hace falta ninguna
+#  cuenta en otro servicio.
+#
+#  Qué direcciones se vigilan: las de abajo. Una dirección que todavía NO
+#  existe en internet (por ejemplo la definitiva, mientras no se cargue el
+#  registro en el dominio) se saltea sin avisar; empieza a vigilarse sola el
+#  día que exista.
+#
+#  GitHub apaga las tareas programadas de un repositorio que pasa 60 días sin
+#  cambios. El último paso la vuelve a habilitar en cada corrida para que eso
+#  no ocurra.
+# ============================================================================
+name: Vigilar que el sistema responda
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+concurrency:
+  group: vigilar
+  cancel-in-progress: true
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Preguntarle al sistema si está vivo
+        env:
+          DIRECCIONES: >-
+            sistema.capinoa.com.ar
+            capinoa.emilianosalasporta.cloud
+        run: |
+          caidos=""
+          for host in $DIRECCIONES; do
+            if ! getent hosts "$host" >/dev/null; then
+              echo "· $host todavía no existe en internet: se saltea."
+              continue
+            fi
+            ok=""
+            for intento in 1 2 3; do
+              if curl -fsS --max-time 20 "https://$host/api/health" >/dev/null; then ok=1; break; fi
+              sleep 20
+            done
+            if [ -n "$ok" ]; then
+              echo "✓ $host responde."
+            else
+              echo "✗ $host NO responde."
+              caidos="$caidos $host"
+            fi
+          done
+          if [ -n "$caidos" ]; then
+            echo "::error::CAPINOA no responde en:$caidos"
+            exit 1
+          fi
+
+      - name: Mantener encendida esta vigilancia
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X PUT "repos/${{ github.repository }}/actions/workflows/vigilar.yml/enable" >/dev/null 2>&1 || true

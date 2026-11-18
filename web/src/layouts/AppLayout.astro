@@ -1,0 +1,116 @@
+---
+/**
+ * Estructura de toda pantalla interna: barra lateral + barra superior + contenido.
+ * Se encarga también de exigir sesión antes de mostrar nada.
+ */
+import Sidebar from "../components/Sidebar.astro";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/components.css";
+
+interface Props {
+  titulo: string;
+  subtitulo?: string;
+}
+const { titulo, subtitulo = "" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>{titulo} · CAPINOA</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      // Tema guardado, aplicado antes de pintar para que no haya un parpadeo blanco.
+      try {
+        const t = localStorage.getItem("capinoa_tema");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <Sidebar />
+      <div class="main">
+        <div id="avisoPrueba"></div>
+        <header class="topbar">
+          <button class="icon-btn burger" id="burger" aria-label="Abrir menú">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              ><path d="M4 6h16M4 12h16M4 18h16" /></svg
+            >
+          </button>
+          <div>
+            <h1>{titulo}</h1>
+            {subtitulo && <div class="sub">{subtitulo}</div>}
+          </div>
+          <div class="topbar-actions">
+            <button class="icon-btn" id="botonTema" aria-label="Cambiar entre claro y oscuro">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+                ><circle cx="12" cy="12" r="4.5" /><path
+                  d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M19.1 4.9l-1.8 1.8M6.7 17.3l-1.8 1.8"
+                /></svg
+              >
+            </button>
+          </div>
+        </header>
+        <main class="content">
+          <slot />
+        </main>
+      </div>
+    </div>
+
+    <script>
+      import { requiereSesion } from "../lib/auth";
+      import { mostrarAvisoDePrueba } from "../lib/licencia";
+
+      // Si no hay sesión, esta línea redirige al login y no se dibuja nada más.
+      if (requiereSesion()) {
+        const caja = document.getElementById("avisoPrueba");
+        if (caja) mostrarAvisoDePrueba(caja);
+      }
+
+      // Menú lateral en pantallas chicas.
+      const barra = document.getElementById("sidebar");
+      document.getElementById("burger")?.addEventListener("click", () => {
+        barra?.classList.add("open");
+        const velo = document.createElement("div");
+        velo.className = "scrim";
+        velo.addEventListener("click", () => {
+          barra?.classList.remove("open");
+          velo.remove();
+        });
+        document.body.appendChild(velo);
+      });
+
+      // Claro / oscuro.
+      document.getElementById("botonTema")?.addEventListener("click", () => {
+        const raiz = document.documentElement;
+        const actual =
+          raiz.dataset.theme ??
+          (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+        const nuevo = actual === "dark" ? "light" : "dark";
+        raiz.dataset.theme = nuevo;
+        try {
+          localStorage.setItem("capinoa_tema", nuevo);
+        } catch (e) {}
+      });
+
+      // Cerrar cualquier modal al hacer clic en el fondo oscuro.
+      document.addEventListener("click", (e) => {
+        const dlg = e.target as HTMLDialogElement;
+        if (dlg?.tagName === "DIALOG" && dlg.open) {
+          const caja = dlg.getBoundingClientRect();
+          const afuera =
+            e.clientY < caja.top ||
+            e.clientY > caja.bottom ||
+            e.clientX < caja.left ||
+            e.clientX > caja.right;
+          if (afuera) dlg.close();
+        }
+      });
+    </script>
+  </body>
+</html>

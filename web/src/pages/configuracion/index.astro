@@ -1,0 +1,475 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Configuración" subtitulo="Cuenta, usuarios, licencia, respaldos y reportes">
+  <!-- ═════════ MI CUENTA ═════════ -->
+  <section class="card pad">
+    <div class="section-title">Mi cuenta</div>
+    <div class="dl" id="misDatos"></div>
+
+    <div class="section-title">Cambiar mi contraseña</div>
+    <form class="form-grid" id="formClave">
+      <div class="field">
+        <label for="claveActual">Contraseña actual</label>
+        <input type="password" id="claveActual" autocomplete="current-password" required />
+      </div>
+      <div class="field">
+        <label for="claveNueva">Contraseña nueva</label>
+        <input type="password" id="claveNueva" autocomplete="new-password" minlength="10" required />
+        <div class="ayuda">Mínimo 10 caracteres.</div>
+      </div>
+      <div class="field">
+        <label for="claveRepetir">Repetir la nueva</label>
+        <input type="password" id="claveRepetir" autocomplete="new-password" minlength="10" required />
+      </div>
+      <div class="field al-pie">
+        <button class="btn btn-primary" type="submit">Cambiar contraseña</button>
+      </div>
+    </form>
+    <p style="color:var(--muted); font-size:.82rem; margin:12px 0 0">
+      Al cambiarla vas a tener que iniciar sesión de nuevo.
+    </p>
+  </section>
+
+  <!-- ═════════ LICENCIA ═════════ -->
+  <section class="card pad">
+    <div class="section-title">Licencia del sistema</div>
+    <div id="cajaLicencia"><div class="vacio">Consultando…</div></div>
+  </section>
+
+  <!-- ═════════ USUARIOS (solo admin) ═════════ -->
+  <section class="card pad" id="seccionUsuarios">
+    <div class="toolbar">
+      <div class="section-title">Usuarios del sistema</div>
+      <button class="btn btn-primary btn-sm empuja" id="nuevoUsuario">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          ><path d="M12 5v14M5 12h14" /></svg
+        >
+        Nuevo usuario
+      </button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr><th>Nombre</th><th>Usuario</th><th>Rol</th><th>Estado</th></tr>
+        </thead>
+        <tbody id="filasUsuarios">
+          <tr><td colspan="4" class="vacio">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═════════ RESPALDOS ═════════ -->
+  <section class="card pad" id="seccionRespaldos">
+    <div class="section-title">Copias de seguridad</div>
+    <p class="section-desc">
+      El sistema vive en un servidor en internet. Todas las noches se hace
+      <b style="color:var(--ink)">una copia completa automática</b> —pacientes,
+      historias clínicas, fotos, turnos y cuentas— y se guarda
+      <b style="color:var(--ink)">en otro lugar, fuera del servidor</b>. No hay
+      que hacer nada: no depende de ninguna computadora de la clínica.
+    </p>
+    <div class="alertas" style="border-color:var(--info); background:var(--info-bg)">
+      <h4 style="color:var(--info)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          ><path d="M12 8v5M12 16v.5" /><circle cx="12" cy="12" r="9" /></svg
+        >
+        Tus datos son tuyos
+      </h4>
+      <ul>
+        <li>Una vez por mes Emiliano te pasa una copia completa, para que la tengas vos.</li>
+        <li>Si borraste algo sin querer, avisale: se puede recuperar de la copia de la noche anterior.</li>
+      </ul>
+    </div>
+
+    <div id="zonaPanelTecnico" class="hidden">
+      <div class="section-title">Panel técnico</div>
+      <div class="toolbar">
+        <a class="btn btn-ghost btn-sm" id="enlacePanel" href="#" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><path d="M14 4h6v6M20 4l-8 8" /><path
+              d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"
+            /></svg
+          >
+          Abrir PocketBase
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═════════ REPORTES (solo admin) ═════════ -->
+  <section class="card pad" id="seccionReportes">
+    <div class="section-title">Problemas reportados</div>
+    <p class="section-desc">
+      Lo que el equipo mandó con el botón <b style="color:var(--ink)">Reportar un problema</b>
+      del menú. Tocá uno para leerlo completo y ver la captura.
+    </p>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr><th>Fecha</th><th>Quién</th><th>Asunto</th><th>Estado</th></tr>
+        </thead>
+        <tbody id="filasReportes">
+          <tr><td colspan="4" class="vacio">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { usuarioActual, puedeAdministrar, puedeVerClinico, NOMBRE_ROL, salir, LARGO_MINIMO_CLAVE } from "../../lib/auth";
+  import { estadoLicencia, pedirClave } from "../../lib/licencia";
+  import { esc, aviso, mensajeDeError, fecha, ICONO } from "../../lib/ui";
+  import { imagen, liberar } from "../../lib/archivos";
+  import { TIPOS_REPORTE, type Reporte } from "../../lib/reportar";
+
+  const yo = usuarioActual();
+  const admin = puedeAdministrar();
+
+  if (!admin) document.getElementById("seccionUsuarios")?.remove();
+  if (!admin) document.getElementById("seccionReportes")?.remove();
+  if (!puedeVerClinico()) document.getElementById("seccionRespaldos")?.remove();
+
+  /* ───────── Mi cuenta ───────── */
+
+  if (yo) {
+    document.getElementById("misDatos")!.innerHTML = [
+      ["Nombre", yo.nombre],
+      ["Usuario", yo.email],
+      ["Rol", NOMBRE_ROL[yo.rol] ?? yo.rol],
+      ["Matrícula", yo.matricula || "—"],
+    ]
+      .map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`)
+      .join("");
+  }
+
+  document.getElementById("formClave")?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const val = (id: string) => (document.getElementById(id) as HTMLInputElement).value;
+    if (val("claveNueva").length < LARGO_MINIMO_CLAVE) {
+      aviso(`La contraseña nueva tiene que tener al menos ${LARGO_MINIMO_CLAVE} caracteres.`, "error");
+      return;
+    }
+    if (val("claveNueva") !== val("claveRepetir")) {
+      aviso("Las dos contraseñas nuevas no coinciden.", "error");
+      return;
+    }
+    try {
+      await pb.collection("equipo").update(yo!.id, {
+        oldPassword: val("claveActual"),
+        password: val("claveNueva"),
+        passwordConfirm: val("claveRepetir"),
+      });
+      aviso("Contraseña cambiada. Volvé a iniciar sesión.");
+      setTimeout(() => salir(), 1400);
+    } catch (err) {
+      const texto = mensajeDeError(err);
+      aviso(
+        texto.toLowerCase().includes("oldpassword")
+          ? "La contraseña actual no es correcta."
+          : texto,
+        "error"
+      );
+    }
+  });
+
+  /* ───────── Licencia ───────── */
+
+  async function dibujarLicencia() {
+    const caja = document.getElementById("cajaLicencia")!;
+    const s = await estadoLicencia();
+
+    if (!s) {
+      caja.innerHTML = `<div class="vacio">No se pudo consultar el estado de la licencia.</div>`;
+      return;
+    }
+
+    if (s.activado) {
+      caja.innerHTML = `
+        <div class="dl">
+          <div><dt>Estado</dt><dd style="color:var(--good); font-weight:600">Sistema activado</dd></div>
+          <div><dt>Vigencia</dt><dd>Sin vencimiento</dd></div>
+        </div>`;
+      return;
+    }
+
+    const dias = s.dias_restantes;
+    const color = dias <= 0 ? "var(--bad)" : dias <= 5 ? "var(--warn)" : "var(--ink)";
+    caja.innerHTML = `
+      <div class="dl" style="margin-bottom:var(--esp-3)">
+        <div><dt>Estado</dt><dd style="color:${color}; font-weight:600">${dias <= 0 ? "Período de prueba vencido" : "Período de prueba"}</dd></div>
+        <div><dt>Días restantes</dt><dd style="color:${color}; font-weight:600">${dias} de ${s.dias_prueba}</dd></div>
+      </div>
+      <p style="color:var(--muted); font-size:.88rem; line-height:1.6; margin:0 0 14px">
+        Cuando termine la prueba el sistema deja de abrirse, pero
+        <b style="color:var(--ink)">tus datos quedan intactos</b>: pacientes,
+        historias, fotos y turnos siguen guardados. Con la clave de activación
+        vuelve a funcionar todo tal cual estaba.
+      </p>
+      <button class="btn btn-primary" id="botonActivar">${ICONO.tilde} Tengo la clave de activación</button>`;
+
+    document
+      .getElementById("botonActivar")
+      ?.addEventListener("click", () => pedirClave(() => dibujarLicencia()));
+  }
+
+  dibujarLicencia();
+
+  /* ───────── Usuarios ───────── */
+
+  async function cargarUsuarios() {
+    if (!admin) return;
+    const cuerpo = document.getElementById("filasUsuarios")!;
+    try {
+      const lista = await pb.collection("equipo").getFullList({ sort: "nombre" });
+      cuerpo.innerHTML = lista
+        .map(
+          (u: any) => `
+        <tr data-usuario="${esc(u.id)}">
+          <td><b style="font-weight:600">${esc(u.nombre)}</b></td>
+          <td style="color:var(--muted)">${esc(u.email)}</td>
+          <td>${esc(NOMBRE_ROL[u.rol as keyof typeof NOMBRE_ROL] ?? u.rol)}</td>
+          <td><span class="pill ${u.activo ? "good" : "neutral"}">${u.activo ? "Activo" : "Sin acceso"}</span></td>
+        </tr>`
+        )
+        .join("");
+      cuerpo.querySelectorAll<HTMLElement>("[data-usuario]").forEach((tr) => {
+        tr.addEventListener("click", () =>
+          abrirUsuario(lista.find((u: any) => u.id === tr.dataset.usuario) ?? null)
+        );
+      });
+    } catch (e) {
+      cuerpo.innerHTML = `<tr><td colspan="4" class="vacio">No se pudieron cargar los usuarios.</td></tr>`;
+    }
+  }
+
+  function abrirUsuario(u: any | null) {
+    const dlg = document.createElement("dialog");
+    dlg.className = "modal";
+    dlg.style.maxWidth = "520px";
+    dlg.innerHTML = `
+      <div class="modal-head">
+        <h3>${u ? "Editar usuario" : "Nuevo usuario"}</h3>
+        <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field completo">
+            <label for="uNombre">Nombre <span class="req">*</span></label>
+            <input type="text" id="uNombre" value="${esc(u?.nombre ?? "")}">
+          </div>
+          <div class="field completo">
+            <label for="uEmail">Usuario (correo) <span class="req">*</span></label>
+            <input type="email" id="uEmail" value="${esc(u?.email ?? "")}" autocomplete="off">
+            <div class="ayuda">Funciona como nombre de usuario. No hace falta que la casilla exista.</div>
+          </div>
+          <div class="field">
+            <label for="uRol">Rol</label>
+            <select id="uRol">
+              <option value="medico"${u?.rol === "medico" ? " selected" : ""}>Médico — ve todo</option>
+              <option value="recepcion"${u?.rol === "recepcion" ? " selected" : ""}>Recepción — sin historias ni fotos</option>
+              <option value="admin"${u?.rol === "admin" ? " selected" : ""}>Administrador — acceso total</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="uMatricula">Matrícula</label>
+            <input type="text" id="uMatricula" value="${esc(u?.matricula ?? "")}">
+          </div>
+          <div class="field completo">
+            <label for="uClave">${u ? "Contraseña nueva (dejar vacío para no cambiarla)" : "Contraseña"} ${u ? "" : '<span class="req">*</span>'}</label>
+            <input type="password" id="uClave" autocomplete="new-password" placeholder="mínimo 10 caracteres">
+            <div class="ayuda">Es provisoria: el sistema le va a pedir que ponga una propia la primera vez que entre.</div>
+          </div>
+          <div class="field completo">
+            <label class="chk${u === null || u?.activo ? " on" : ""}" id="uActivo" role="checkbox" tabindex="0"
+                   aria-checked="${u === null || u?.activo}">
+              <span class="b">${ICONO.tilde}</span>Puede iniciar sesión
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="uCancelar">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="uGuardar">${ICONO.guardar} Guardar</button>
+      </div>`;
+
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    const cerrar = () => { dlg.close(); dlg.remove(); };
+    dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+    dlg.querySelector("#uCancelar")?.addEventListener("click", cerrar);
+    dlg.addEventListener("close", () => dlg.remove());
+
+    const casilla = dlg.querySelector("#uActivo") as HTMLElement;
+    const alternar = () => {
+      const on = casilla.classList.toggle("on");
+      casilla.setAttribute("aria-checked", String(on));
+    };
+    casilla.addEventListener("click", alternar);
+    casilla.addEventListener("keydown", (e) => {
+      if ((e as KeyboardEvent).key === " " || (e as KeyboardEvent).key === "Enter") {
+        e.preventDefault();
+        alternar();
+      }
+    });
+
+    dlg.querySelector("#uGuardar")?.addEventListener("click", async () => {
+      const boton = dlg.querySelector("#uGuardar") as HTMLButtonElement;
+      const v = (id: string) => (dlg.querySelector("#" + id) as HTMLInputElement).value.trim();
+      const clave = v("uClave");
+
+      if (!v("uNombre") || !v("uEmail")) {
+        aviso("Faltan el nombre o el usuario.", "error");
+        return;
+      }
+      if ((!u || clave) && clave.length < LARGO_MINIMO_CLAVE) {
+        aviso(`La contraseña tiene que tener al menos ${LARGO_MINIMO_CLAVE} caracteres.`, "error");
+        return;
+      }
+
+      boton.disabled = true;
+      const datos: Record<string, unknown> = {
+        nombre: v("uNombre"),
+        email: v("uEmail"),
+        rol: (dlg.querySelector("#uRol") as HTMLSelectElement).value,
+        matricula: v("uMatricula"),
+        activo: casilla.classList.contains("on"),
+        emailVisibility: true,
+        verified: true,
+      };
+      if (clave) {
+        datos.password = clave;
+        datos.passwordConfirm = clave;
+      }
+
+      try {
+        if (u) await pb.collection("equipo").update(u.id, datos);
+        else await pb.collection("equipo").create(datos);
+        aviso("Usuario guardado.");
+        cerrar();
+        cargarUsuarios();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+        boton.disabled = false;
+      }
+    });
+  }
+
+  document.getElementById("nuevoUsuario")?.addEventListener("click", () => abrirUsuario(null));
+  cargarUsuarios();
+
+  /* ───────── Respaldos ───────── */
+
+  // El panel técnico de PocketBase solo se le ofrece al soporte. Desde ahí se
+  // puede editar cualquier cosa de la base (incluida la licencia), así que no
+  // es algo que tenga que estar a mano en el consultorio.
+  if (admin) {
+    document.getElementById("zonaPanelTecnico")?.classList.remove("hidden");
+    const panel = document.getElementById("enlacePanel") as HTMLAnchorElement | null;
+    if (panel) panel.href = `${pb.baseURL}/_/`;
+  }
+
+  /* ───────── Problemas reportados ───────── */
+
+  async function cargarReportes() {
+    if (!admin) return;
+    const cuerpo = document.getElementById("filasReportes")!;
+    try {
+      const lista = await pb.collection("reportes").getFullList<Reporte>({
+        sort: "-created",
+        expand: "autor",
+      });
+      if (!lista.length) {
+        cuerpo.innerHTML = `<tr><td colspan="4" class="vacio">Todavía no se reportó nada.</td></tr>`;
+        return;
+      }
+      cuerpo.innerHTML = lista
+        .map(
+          (r) => `
+        <tr data-reporte="${esc(r.id)}">
+          <td style="color:var(--muted); white-space:nowrap">${esc(fecha(r.created))}</td>
+          <td>${esc(r.expand?.autor?.nombre ?? "—")}</td>
+          <td><b style="font-weight:600">${esc(r.titulo)}</b></td>
+          <td><span class="pill ${r.resuelto ? "good" : "warn"}">${r.resuelto ? "Resuelto" : "Pendiente"}</span></td>
+        </tr>`
+        )
+        .join("");
+      cuerpo.querySelectorAll<HTMLElement>("[data-reporte]").forEach((tr) => {
+        tr.addEventListener("click", () => {
+          const r = lista.find((x) => x.id === tr.dataset.reporte);
+          if (r) abrirDetalleReporte(r);
+        });
+      });
+    } catch (e) {
+      cuerpo.innerHTML = `<tr><td colspan="4" class="vacio">No se pudieron cargar los reportes.</td></tr>`;
+    }
+  }
+
+  function abrirDetalleReporte(r: Reporte) {
+    const dlg = document.createElement("dialog");
+    dlg.className = "modal";
+    dlg.style.maxWidth = "640px";
+    dlg.innerHTML = `
+      <div class="modal-head">
+        <h3>${esc(r.titulo)}</h3>
+        <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="dl" style="margin-bottom:var(--esp-3)">
+          <div><dt>Fecha</dt><dd>${esc(fecha(r.created))}</dd></div>
+          <div><dt>Quién</dt><dd>${esc(r.expand?.autor?.nombre ?? "—")}</dd></div>
+          <div><dt>Tipo</dt><dd>${esc(TIPOS_REPORTE[r.tipo ?? ""] ?? "—")}</dd></div>
+          <div><dt>Pantalla</dt><dd>${esc(r.pagina_origen || "—")}</dd></div>
+        </div>
+        <p style="white-space:pre-wrap; line-height:1.6; margin:0">${esc(r.cuerpo)}</p>
+        <div id="repCapturaVer" style="margin-top:var(--esp-3)"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost btn-sm" id="repCerrar">Cerrar</button>
+        <button class="btn btn-primary btn-sm" id="repResolver">${ICONO.tilde} ${r.resuelto ? "Volver a pendiente" : "Marcar como resuelto"}</button>
+      </div>`;
+
+    document.body.appendChild(dlg);
+    dlg.showModal();
+
+    // La captura es un archivo protegido: se baja con permiso, como las fotos.
+    let urlCaptura = "";
+    if (r.captura) {
+      const caja = dlg.querySelector("#repCapturaVer") as HTMLElement;
+      caja.innerHTML = `<div class="vacio">Cargando la captura…</div>`;
+      imagen(r as never, "captura")
+        .then((url) => {
+          urlCaptura = url;
+          caja.innerHTML = `<img src="${url}" alt="Captura de pantalla del reporte"
+            style="max-width:100%; border-radius:8px; border:1px solid var(--line); display:block">`;
+        })
+        .catch(() => {
+          caja.innerHTML = `<div class="vacio">No se pudo cargar la captura.</div>`;
+        });
+    }
+
+    const cerrar = () => dlg.close();
+    dlg.addEventListener("close", () => {
+      liberar(urlCaptura);
+      dlg.remove();
+    });
+    dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+    dlg.querySelector("#repCerrar")?.addEventListener("click", cerrar);
+    dlg.querySelector("#repResolver")?.addEventListener("click", async () => {
+      try {
+        await pb.collection("reportes").update(r.id, { resuelto: !r.resuelto });
+        cerrar();
+        cargarReportes();
+      } catch (e) {
+        aviso(mensajeDeError(e), "error");
+      }
+    });
+  }
+
+  cargarReportes();
+</script>

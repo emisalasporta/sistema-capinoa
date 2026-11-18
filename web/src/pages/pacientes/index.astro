@@ -1,0 +1,191 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Pacientes" subtitulo="Listado y búsqueda">
+  <section class="card pad">
+    <div class="toolbar">
+      <div class="field" style="flex:1; min-width:230px">
+        <input
+          type="search"
+          id="buscador"
+          placeholder="Buscar por apellido, nombre, DNI o teléfono…"
+          autocomplete="off"
+        />
+      </div>
+      <div class="field" style="min-width:170px">
+        <select id="filtroEstado">
+          <option value="">Todos los estados</option>
+          <option value="consulta_inicial">Consulta inicial</option>
+          <option value="en_evaluacion">En evaluación</option>
+          <option value="en_tratamiento">En tratamiento</option>
+          <option value="candidato_fue">Candidato a FUE</option>
+          <option value="programado_cirugia">Cirugía programada</option>
+          <option value="post_operatorio">Post-operatorio</option>
+          <option value="seguimiento">En seguimiento</option>
+          <option value="alta">Alta</option>
+          <option value="inactivo">Inactivo</option>
+        </select>
+      </div>
+      <a class="btn btn-primary" href="/pacientes/nuevo/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          ><path d="M12 5v14M5 12h14" /></svg
+        >
+        Nuevo paciente
+      </a>
+    </div>
+
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Paciente</th>
+            <th>Contacto</th>
+            <th>Estado</th>
+            <th>Última consulta</th>
+          </tr>
+        </thead>
+        <tbody id="filas">
+          <tr><td colspan="4" class="vacio">Cargando…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div
+      id="paginacion"
+      class="toolbar hidden"
+      style="justify-content:center; margin-top:16px"
+    >
+      <button class="btn btn-ghost btn-sm" id="anterior">← Anterior</button>
+      <span id="infoPagina" style="font-size:.85rem; color:var(--muted)"></span>
+      <button class="btn btn-ghost btn-sm" id="siguiente">Siguiente →</button>
+    </div>
+  </section>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { esc, fecha, edad, iniciales, colorDe, enlace, ESTADOS_PACIENTE } from "../../lib/ui";
+
+  const POR_PAGINA = 25;
+  let pagina = 1;
+  let totalPaginas = 1;
+
+  const buscador = document.getElementById("buscador") as HTMLInputElement;
+  const filtroEstado = document.getElementById("filtroEstado") as HTMLSelectElement;
+  const filas = document.getElementById("filas") as HTMLElement;
+
+  function chipEstado(estado?: string): string {
+    const e = ESTADOS_PACIENTE[estado ?? ""] ?? { texto: "Sin estado", tono: "neutral" };
+    return `<span class="pill ${e.tono}">${esc(e.texto)}</span>`;
+  }
+
+  /**
+   * Arma el filtro de PocketBase a partir de la búsqueda y el estado elegido.
+   *
+   * Se usa `pb.filter(...)`, que se encarga de escapar lo que escribió la
+   * persona. Pegar el texto a mano dentro de las comillas es un agujero: basta
+   * con buscar algo que contenga una comilla para romper la consulta.
+   */
+  function armarFiltro(): string {
+    const partes: string[] = [];
+    const texto = buscador.value.trim();
+    if (texto) {
+      partes.push(
+        pb.filter(
+          "(apellido ~ {:t} || nombre ~ {:t} || dni ~ {:t} || telefono ~ {:t})",
+          { t: texto }
+        )
+      );
+    }
+    if (filtroEstado.value) {
+      partes.push(pb.filter("estado = {:e}", { e: filtroEstado.value }));
+    }
+    return partes.join(" && ");
+  }
+
+  async function cargar() {
+    filas.innerHTML = `<tr><td colspan="4" class="vacio">Cargando…</td></tr>`;
+    try {
+      const r = await pb.collection("pacientes").getList(pagina, POR_PAGINA, {
+        filter: armarFiltro(),
+        sort: "apellido,nombre",
+      });
+      totalPaginas = r.totalPages;
+
+      if (!r.items.length) {
+        const buscando = buscador.value.trim() || filtroEstado.value;
+        filas.innerHTML = buscando
+          ? `<tr><td colspan="4" class="vacio"><b>Sin resultados</b>Probá con otro apellido o sacá el filtro de estado.</td></tr>`
+          : `<tr><td colspan="4" class="vacio"><b>Todavía no hay pacientes cargados</b>Tocá “Nuevo paciente” para cargar el primero.</td></tr>`;
+      } else {
+        filas.innerHTML = r.items
+          .map((p: any) => {
+            const años = edad(p.fecha_nacimiento);
+            const sexo =
+              p.sexo === "femenino" ? "Femenino" : p.sexo === "masculino" ? "Masculino" : "";
+            const sub = [años !== null ? `${años} años` : "", sexo].filter(Boolean).join(" · ");
+            return `
+              <tr data-id="${esc(p.id)}">
+                <td>
+                  <div class="person">
+                    <div class="av" style="background:${colorDe(p.id)}">${esc(iniciales(p.apellido, p.nombre))}</div>
+                    <div><b>${esc(p.apellido)}, ${esc(p.nombre)}</b><span>${esc(sub || "—")}</span></div>
+                  </div>
+                </td>
+                <td>
+                  ${p.telefono ? `<div>${esc(p.telefono)}</div>` : ""}
+                  <div style="color:var(--muted); font-size:.78rem">${p.dni ? "DNI " + esc(p.dni) : "sin DNI"}</div>
+                </td>
+                <td>${chipEstado(p.estado)}</td>
+                <td class="tnum">${fecha(p.fecha_primera_consulta) || "—"}</td>
+              </tr>`;
+          })
+          .join("");
+
+        filas.querySelectorAll<HTMLElement>("tr[data-id]").forEach((tr) => {
+          tr.addEventListener("click", () => {
+            location.href = enlace("/pacientes/ficha", { id: tr.dataset.id });
+          });
+        });
+      }
+
+      const paginacion = document.getElementById("paginacion")!;
+      paginacion.classList.toggle("hidden", totalPaginas <= 1);
+      document.getElementById("infoPagina")!.textContent =
+        `Página ${pagina} de ${totalPaginas} · ${r.totalItems} pacientes`;
+      (document.getElementById("anterior") as HTMLButtonElement).disabled = pagina <= 1;
+      (document.getElementById("siguiente") as HTMLButtonElement).disabled = pagina >= totalPaginas;
+    } catch (e) {
+      filas.innerHTML = `<tr><td colspan="4" class="vacio">No se pudo conectar con la base de datos. Fijate que CAPINOA esté abierto.</td></tr>`;
+    }
+  }
+
+  // Buscar con una pequeña espera para no consultar en cada tecla.
+  let espera: number;
+  buscador.addEventListener("input", () => {
+    clearTimeout(espera);
+    espera = window.setTimeout(() => {
+      pagina = 1;
+      cargar();
+    }, 280);
+  });
+  filtroEstado.addEventListener("change", () => {
+    pagina = 1;
+    cargar();
+  });
+  document.getElementById("anterior")?.addEventListener("click", () => {
+    if (pagina > 1) {
+      pagina--;
+      cargar();
+    }
+  });
+  document.getElementById("siguiente")?.addEventListener("click", () => {
+    if (pagina < totalPaginas) {
+      pagina++;
+      cargar();
+    }
+  });
+
+  cargar();
+</script>

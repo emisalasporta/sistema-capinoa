@@ -1,0 +1,400 @@
+---
+import AppLayout from "../../layouts/AppLayout.astro";
+---
+
+<AppLayout titulo="Finanzas" subtitulo="Ingresos y gastos del consultorio">
+  <div id="bloqueado" class="card pad hidden">
+    <div class="lock">
+      <div class="ring">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          ><rect x="4.5" y="10" width="15" height="10" rx="2" /><path
+            d="M8 10V7a4 4 0 0 1 8 0v3"
+          /></svg
+        >
+      </div>
+      <h3>Sección reservada</h3>
+      <p>Las finanzas del consultorio las ve solo la dirección.</p>
+    </div>
+  </div>
+
+  <div id="contenido">
+    <div class="toolbar">
+      <div class="grupo">
+        <button class="btn btn-ghost btn-icono" id="mesAnterior" aria-label="Mes anterior">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M15 18l-6-6 6-6" /></svg
+          >
+        </button>
+        <button class="btn btn-ghost" id="mesActual">Este mes</button>
+        <button class="btn btn-ghost btn-icono" id="mesSiguiente" aria-label="Mes siguiente">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            ><path d="M9 6l6 6-6 6" /></svg
+          >
+        </button>
+        <span class="titulo-rango" id="tituloMes" style="text-transform:capitalize"></span>
+      </div>
+      <button class="btn btn-primary empuja" id="nuevoMovimiento">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          ><path d="M12 5v14M5 12h14" /></svg
+        >
+        Nuevo movimiento
+      </button>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="ic green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><path d="M4 18l6-6 4 4 6-8" /><path d="M20 8h-4M20 8v4" /></svg
+          >
+        </div>
+        <div class="v tnum" id="kpiIngresos">—</div>
+        <div class="k">Ingresos del mes</div>
+      </div>
+      <div class="stat">
+        <div class="ic amber">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><path d="M4 6l6 6 4-4 6 8" /><path d="M20 16h-4M20 16v-4" /></svg
+          >
+        </div>
+        <div class="v tnum" id="kpiEgresos">—</div>
+        <div class="k">Gastos del mes</div>
+      </div>
+      <div class="stat">
+        <div class="ic teal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+            ><circle cx="12" cy="12" r="9" /><path d="M12 7v10M9 9.5h4.5a1.8 1.8 0 0 1 0 3.5H9.5" /></svg
+          >
+        </div>
+        <div class="v tnum" id="kpiBalance">—</div>
+        <div class="k">Balance del mes</div>
+      </div>
+    </div>
+
+    <section class="card pad">
+      <div class="toolbar">
+        <div class="field" style="min-width:150px">
+          <select id="filtroTipo">
+            <option value="">Ingresos y gastos</option>
+            <option value="ingreso">Solo ingresos</option>
+            <option value="egreso">Solo gastos</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1; min-width:200px">
+          <input type="search" id="buscador" placeholder="Buscar por concepto…" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Concepto</th>
+              <th>Categoría</th>
+              <th>Paciente</th>
+              <th style="text-align:right">Monto</th>
+            </tr>
+          </thead>
+          <tbody id="filas">
+            <tr><td colspan="5" class="vacio">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</AppLayout>
+
+<script>
+  import { pb } from "../../lib/pocketbase";
+  import { usuarioActual, puedeVerFinanzas } from "../../lib/auth";
+  import {
+    esc, fecha, fechaInput, hoyInput, montoARS, sumarMeses, nombreMes,
+    aviso, mensajeDeError, CATEGORIAS, CATEGORIAS_INGRESO, CATEGORIAS_EGRESO,
+    MEDIOS_PAGO, ICONO,
+  } from "../../lib/ui";
+
+  // Recepción no entra acá. (La barrera real igual está en el servidor.)
+  if (!puedeVerFinanzas()) {
+    document.getElementById("bloqueado")!.classList.remove("hidden");
+    document.getElementById("contenido")!.remove();
+  } else {
+    arrancar();
+  }
+
+  function arrancar() {
+    let mes = hoyInput().slice(0, 7); // "2026-08"
+    let movimientos: any[] = [];
+    let pacientes: any[] = [];
+
+    const filtroTipo = document.getElementById("filtroTipo") as HTMLSelectElement;
+    const buscador = document.getElementById("buscador") as HTMLInputElement;
+
+    /* ---------- Carga ---------- */
+
+    async function cargarPacientes() {
+      try {
+        pacientes = await pb.collection("pacientes").getFullList({
+          sort: "apellido,nombre",
+          fields: "id,apellido,nombre",
+        });
+      } catch { pacientes = []; }
+    }
+
+    async function cargar() {
+      document.getElementById("tituloMes")!.textContent = nombreMes(mes + "-01");
+
+      // El mes va del día 1 al último: se pide el rango completo y se filtra en
+      // pantalla, así cambiar de filtro o buscar no vuelve a consultar la base.
+      const ultimo = new Date(
+        Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)
+      ).getUTCDate();
+
+      try {
+        movimientos = await pb.collection("movimientos").getFullList({
+          filter: `fecha >= "${mes}-01 00:00:00" && fecha <= "${mes}-${String(ultimo).padStart(2, "0")} 23:59:59"`,
+          sort: "-fecha,-created",
+          expand: "paciente",
+        });
+      } catch (e) {
+        document.getElementById("filas")!.innerHTML =
+          `<tr><td colspan="5" class="vacio">No se pudieron cargar los movimientos.</td></tr>`;
+        return;
+      }
+
+      const ingresos = movimientos.filter((m) => m.tipo === "ingreso").reduce((s, m) => s + (m.monto || 0), 0);
+      const egresos = movimientos.filter((m) => m.tipo === "egreso").reduce((s, m) => s + (m.monto || 0), 0);
+      const balance = ingresos - egresos;
+
+      document.getElementById("kpiIngresos")!.textContent = montoARS(ingresos);
+      document.getElementById("kpiEgresos")!.textContent = montoARS(egresos);
+      const cajaBalance = document.getElementById("kpiBalance")!;
+      cajaBalance.textContent = (balance < 0 ? "− " : "") + montoARS(balance);
+      cajaBalance.style.color = balance < 0 ? "var(--bad)" : "var(--good)";
+
+      dibujarTabla();
+    }
+
+    function dibujarTabla() {
+      const texto = buscador.value.trim().toLowerCase();
+      const lista = movimientos.filter((m) => {
+        if (filtroTipo.value && m.tipo !== filtroTipo.value) return false;
+        if (texto && !String(m.concepto ?? "").toLowerCase().includes(texto)) return false;
+        return true;
+      });
+
+      const cuerpo = document.getElementById("filas")!;
+      if (!lista.length) {
+        cuerpo.innerHTML = movimientos.length
+          ? `<tr><td colspan="5" class="vacio">Ningún movimiento coincide con el filtro.</td></tr>`
+          : `<tr><td colspan="5" class="vacio"><b>Todavía no hay movimientos este mes</b>Tocá “Nuevo movimiento” para cargar el primero.</td></tr>`;
+        return;
+      }
+
+      cuerpo.innerHTML = lista
+        .map((m) => {
+          const p = m.expand?.paciente;
+          const esIngreso = m.tipo === "ingreso";
+          return `
+            <tr data-id="${esc(m.id)}">
+              <td class="tnum">${fecha(m.fecha)}</td>
+              <td>
+                <b style="font-weight:600">${esc(m.concepto)}</b>
+                ${m.medio_pago ? `<div style="color:var(--muted); font-size:.78rem">${esc(MEDIOS_PAGO[m.medio_pago] ?? m.medio_pago)}</div>` : ""}
+              </td>
+              <td>${m.categoria ? `<span class="pill neutral">${esc(CATEGORIAS[m.categoria] ?? m.categoria)}</span>` : ""}</td>
+              <td style="color:var(--muted)">${p ? `${esc(p.apellido)}, ${esc(p.nombre)}` : "—"}</td>
+              <td style="text-align:right">
+                <span class="tnum" style="font-weight:600; white-space:nowrap; color:${esIngreso ? "var(--good)" : "var(--bad)"}">
+                  ${esIngreso ? "+" : "−"} ${esc(montoARS(m.monto ?? 0))}
+                </span>
+              </td>
+            </tr>`;
+        })
+        .join("");
+
+      cuerpo.querySelectorAll<HTMLElement>("tr[data-id]").forEach((tr) => {
+        tr.addEventListener("click", () =>
+          abrirMovimiento(movimientos.find((m) => m.id === tr.dataset.id) ?? null)
+        );
+      });
+    }
+
+    /* ---------- Alta y edición ---------- */
+
+    function abrirMovimiento(m: any | null, pacientePrevio?: string) {
+      const dlg = document.createElement("dialog");
+      dlg.className = "modal";
+      const tipoInicial = m?.tipo ?? "ingreso";
+      const idPaciente = m?.paciente ?? pacientePrevio ?? "";
+
+      dlg.innerHTML = `
+        <div class="modal-head">
+          <h3>${m ? "Editar movimiento" : "Nuevo movimiento"}</h3>
+          <button class="modal-cerrar" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-grid">
+            <div class="field">
+              <label for="mTipo">¿Entra o sale plata? <span class="req">*</span></label>
+              <select id="mTipo">
+                <option value="ingreso"${tipoInicial === "ingreso" ? " selected" : ""}>Ingreso (entra)</option>
+                <option value="egreso"${tipoInicial === "egreso" ? " selected" : ""}>Gasto (sale)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="mFecha">Fecha <span class="req">*</span></label>
+              <input type="date" id="mFecha" value="${esc(fechaInput(m?.fecha) || hoyInput())}">
+            </div>
+            <div class="field completo">
+              <label for="mConcepto">Concepto <span class="req">*</span></label>
+              <input type="text" id="mConcepto" value="${esc(m?.concepto ?? "")}" placeholder="Ej: saldo implante FUE">
+            </div>
+            <div class="field">
+              <label for="mMonto">Monto <span class="req">*</span></label>
+              <input type="number" id="mMonto" min="0" step="1000" value="${esc(m?.monto ?? "")}" placeholder="0">
+              <div class="ayuda">Siempre en positivo. Que entre o salga lo define el campo de arriba.</div>
+            </div>
+            <div class="field">
+              <label for="mCategoria">Categoría</label>
+              <select id="mCategoria"></select>
+            </div>
+            <div class="field">
+              <label for="mMedio">Medio de pago</label>
+              <select id="mMedio">
+                <option value="">—</option>
+                ${Object.entries(MEDIOS_PAGO)
+                  .map(([k, v]) => `<option value="${esc(k)}"${m?.medio_pago === k ? " selected" : ""}>${esc(v)}</option>`)
+                  .join("")}
+              </select>
+            </div>
+            <div class="field">
+              <label for="mPaciente">Paciente</label>
+              <select id="mPaciente">
+                <option value="">— no corresponde a un paciente —</option>
+                ${pacientes
+                  .map((p) => `<option value="${esc(p.id)}"${idPaciente === p.id ? " selected" : ""}>${esc(p.apellido)}, ${esc(p.nombre)}</option>`)
+                  .join("")}
+              </select>
+            </div>
+            <div class="field completo">
+              <label for="mNotas">Notas</label>
+              <textarea id="mNotas" placeholder="Ej: paga el resto en la próxima consulta">${esc(m?.notas ?? "")}</textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          ${m ? `<button class="btn btn-danger btn-sm" id="mBorrar">${ICONO.borrar} Eliminar</button>` : ""}
+          <button class="btn btn-ghost btn-sm" id="mCancelar">Cancelar</button>
+          <button class="btn btn-primary btn-sm" id="mGuardar">${ICONO.guardar} Guardar</button>
+        </div>`;
+
+      document.body.appendChild(dlg);
+      dlg.showModal();
+
+      const cerrar = () => { dlg.close(); dlg.remove(); };
+      dlg.querySelector(".modal-cerrar")?.addEventListener("click", cerrar);
+      dlg.querySelector("#mCancelar")?.addEventListener("click", cerrar);
+      dlg.addEventListener("close", () => dlg.remove());
+
+      // Las categorías dependen de si entra o sale plata: no tiene sentido
+      // ofrecer "Alquiler" en un ingreso.
+      const selTipo = dlg.querySelector("#mTipo") as HTMLSelectElement;
+      const selCategoria = dlg.querySelector("#mCategoria") as HTMLSelectElement;
+      const refrescarCategorias = () => {
+        const opciones = selTipo.value === "ingreso" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+        const actual = selCategoria.value || m?.categoria || "";
+        selCategoria.innerHTML =
+          `<option value="">—</option>` +
+          Object.entries(opciones)
+            .map(([k, v]) => `<option value="${esc(k)}"${actual === k ? " selected" : ""}>${esc(v)}</option>`)
+            .join("");
+      };
+      selTipo.addEventListener("change", refrescarCategorias);
+      refrescarCategorias();
+
+      dlg.querySelector("#mBorrar")?.addEventListener("click", async () => {
+        if (!confirm("¿Eliminar este movimiento?")) return;
+        try {
+          await pb.collection("movimientos").delete(m.id);
+          aviso("Movimiento eliminado.");
+          cerrar();
+          cargar();
+        } catch (e) {
+          aviso(mensajeDeError(e), "error");
+        }
+      });
+
+      dlg.querySelector("#mGuardar")?.addEventListener("click", async () => {
+        const boton = dlg.querySelector("#mGuardar") as HTMLButtonElement;
+        const v = (id: string) => (dlg.querySelector("#" + id) as HTMLInputElement)?.value ?? "";
+
+        const concepto = v("mConcepto").trim();
+        const monto = Number(v("mMonto"));
+        if (!concepto) { aviso("Falta el concepto.", "error"); return; }
+        if (!monto || monto <= 0) { aviso("El monto tiene que ser mayor a cero.", "error"); return; }
+
+        boton.disabled = true;
+        const cuerpo: Record<string, unknown> = {
+          fecha: v("mFecha"),
+          tipo: v("mTipo"),
+          concepto,
+          monto,
+          categoria: v("mCategoria"),
+          medio_pago: v("mMedio"),
+          paciente: v("mPaciente") || null,
+          notas: v("mNotas"),
+        };
+
+        try {
+          if (m) {
+            await pb.collection("movimientos").update(m.id, cuerpo);
+          } else {
+            cuerpo.creado_por = usuarioActual()?.id ?? null;
+            await pb.collection("movimientos").create(cuerpo);
+          }
+          aviso("Movimiento guardado.");
+          // Si se cargó en otro mes, saltamos a ese mes para que se vea.
+          mes = v("mFecha").slice(0, 7);
+          cerrar();
+          cargar();
+        } catch (e) {
+          aviso(mensajeDeError(e), "error");
+          boton.disabled = false;
+        }
+      });
+    }
+
+    /* ---------- Navegación ---------- */
+
+    document.getElementById("mesAnterior")?.addEventListener("click", () => {
+      mes = sumarMeses(mes + "-01", -1).slice(0, 7);
+      cargar();
+    });
+    document.getElementById("mesSiguiente")?.addEventListener("click", () => {
+      mes = sumarMeses(mes + "-01", 1).slice(0, 7);
+      cargar();
+    });
+    document.getElementById("mesActual")?.addEventListener("click", () => {
+      mes = hoyInput().slice(0, 7);
+      cargar();
+    });
+    document.getElementById("nuevoMovimiento")?.addEventListener("click", () => abrirMovimiento(null));
+
+    filtroTipo.addEventListener("change", dibujarTabla);
+    let espera: number;
+    buscador.addEventListener("input", () => {
+      clearTimeout(espera);
+      espera = window.setTimeout(dibujarTabla, 220);
+    });
+
+    (async () => {
+      await cargarPacientes();
+      await cargar();
+      // Si se llegó desde la ficha de un paciente, se abre el alta con ese
+      // paciente ya elegido.
+      const previo = new URLSearchParams(location.search).get("paciente");
+      if (previo) abrirMovimiento(null, previo);
+    })();
+  }
+</script>

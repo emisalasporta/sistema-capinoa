@@ -1,0 +1,142 @@
+---
+import Marca from "../components/Marca.astro";
+import "../styles/tokens.css";
+import "../styles/base.css";
+import "../styles/components.css";
+---
+
+<!doctype html>
+<html lang="es-AR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Ingresar · CAPINOA</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <script is:inline>
+      try {
+        const t = localStorage.getItem("capinoa_tema");
+        if (t) document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div class="login-wrap">
+      <form class="login-card" id="formLogin">
+        <Marca tono="color" />
+        <div class="name">CAPI<span class="noa">NOA</span></div>
+        <div class="tag">SISTEMA DE GESTIÓN</div>
+
+        <div class="login-error hidden" id="errorLogin"></div>
+
+        <div class="field">
+          <label for="email">Usuario</label>
+          <input
+            type="text"
+            id="email"
+            name="email"
+            autocomplete="username"
+            placeholder="tu correo"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="password">Contraseña</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            required
+          />
+        </div>
+        <button class="btn btn-primary" type="submit" id="botonIngresar">Ingresar</button>
+
+        <div class="login-note" id="notaLogin">
+          Tus datos viven en tu propio sistema, no en el de un tercero.
+        </div>
+
+        <!--
+          Si el período de prueba venció, la activación tiene que estar ACÁ.
+          Estaba solo adentro de Configuración, y ahí no se llega sin iniciar
+          sesión: justo lo que el vencimiento impide. Quedaba sin salida.
+        -->
+        <div id="zonaActivacion" class="hidden" style="margin-top:18px">
+          <button class="btn btn-ghost" type="button" id="botonActivarLogin" style="width:100%">
+            Tengo la clave de activación
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <script>
+      import { pb } from "../lib/pocketbase";
+      import { ingresar } from "../lib/auth";
+      import { mensajeDeError } from "../lib/ui";
+      import { estadoLicencia, pedirClave } from "../lib/licencia";
+
+      // Estado del período de prueba: si venció, se ofrece activar desde acá.
+      const zonaActivacion = document.getElementById("zonaActivacion") as HTMLElement;
+      document.getElementById("botonActivarLogin")?.addEventListener("click", () =>
+        pedirClave(() => location.reload())
+      );
+
+      estadoLicencia().then((s) => {
+        if (!s || s.activado) return;
+        zonaActivacion.classList.remove("hidden");
+        if (s.bloqueado) {
+          const nota = document.getElementById("notaLogin")!;
+          nota.innerHTML =
+            "El período de prueba terminó.<br><b>Tus datos están intactos</b>: " +
+            "con la clave de activación vuelve a funcionar todo tal cual estaba.";
+          nota.style.color = "var(--warn)";
+        } else {
+          document.getElementById("notaLogin")!.textContent =
+            s.dias_restantes === 1
+              ? "Período de prueba: queda 1 día."
+              : `Período de prueba: quedan ${s.dias_restantes} días.`;
+        }
+      });
+
+      const form = document.getElementById("formLogin") as HTMLFormElement;
+      const boton = document.getElementById("botonIngresar") as HTMLButtonElement;
+      const cajaError = document.getElementById("errorLogin") as HTMLElement;
+
+      // A dónde volver después de entrar (lo pone el guard de las páginas internas).
+      // Solo se aceptan direcciones internas: si alguien arma un enlace con
+      // "volver=https://otro-sitio", lo ignoramos y mandamos al inicio. Sin este
+      // control, un enlace preparado podría sacar al usuario del sistema justo
+      // después de que escribió su contraseña.
+      const pedido = new URLSearchParams(location.search).get("volver") ?? "";
+      const volver = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : "/";
+
+      // Si ya había sesión abierta, no hace falta loguearse de nuevo.
+      if (pb.authStore.isValid) location.href = volver;
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        cajaError.classList.add("hidden");
+        boton.disabled = true;
+        boton.textContent = "Ingresando…";
+        try {
+          const email = (document.getElementById("email") as HTMLInputElement).value.trim();
+          const password = (document.getElementById("password") as HTMLInputElement).value;
+          const usuario = await ingresar(email, password);
+          // Con contraseña provisoria, primero la cambia.
+          location.href = usuario.debe_cambiar_clave ? "/cambiar-clave/" : volver;
+        } catch (err) {
+          // PocketBase devuelve 400 genérico cuando el usuario o la clave están mal.
+          const detalle = mensajeDeError(err);
+          cajaError.textContent = detalle.includes("Failed to authenticate")
+            ? "Usuario o contraseña incorrectos."
+            : (err as { status?: number })?.status === 429
+              ? "Demasiados intentos seguidos. Esperá un minuto y probá de nuevo."
+              : detalle;
+          cajaError.classList.remove("hidden");
+          boton.disabled = false;
+          boton.textContent = "Ingresar";
+        }
+      });
+    </script>
+  </body>
+</html>
