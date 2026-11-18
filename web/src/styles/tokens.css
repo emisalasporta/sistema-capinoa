@@ -61,13 +61,21 @@
   --info: #2f6fb0;
   --info-bg: rgba(47, 111, 176, 0.12);
 
-  --shadow-sm: 0 1px 2px rgba(18, 56, 95, 0.06), 0 2px 8px rgba(18, 56, 95, 0.05);
-  --shadow: 0 12px 30px -14px rgba(18, 56, 95, 0.3);
-  --shadow-lg: 0 30px 60px -28px rgba(18, 56, 95, 0.45);
+  /* Sombras casi invisibles: la separación entre paneles la dan el espacio y
+     un borde fino, no una sombra. Es lo que hace que el conjunto se vea
+     ordenado en vez de "apilado". Solo los cuadros flotantes (ventanas,
+     avisos) llevan sombra de verdad. */
+  --shadow-sm: none;
+  --shadow: 0 8px 24px -12px rgba(18, 56, 95, 0.18);
+  --shadow-lg: 0 24px 48px -24px rgba(18, 56, 95, 0.35);
 
-  --r: 14px;
-  --r-sm: 10px;
-  --r-lg: 20px;
+  --r: 12px;
+  --r-sm: 8px;
+  --r-lg: 16px;
+
+  /* Color del botón principal: liso, sin degradé ni brillo. */
+  --primario: #1597a5;
+  --primario-hover: #117f8b;
 
   --sidebar-w: 250px;
 
@@ -105,6 +113,11 @@
   --esp-3: 16px;
   --esp-4: 22px;
   --esp-5: 30px;
+
+  /* Separación entre los bloques grandes de una pantalla (barra de arriba,
+     indicadores, tablas). Una sola medida para todas: si dos paneles se
+     tocan, es porque falta este espacio, no porque haga falta otro número. */
+  --esp-pagina: 24px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -131,7 +144,9 @@
     --info-bg: rgba(91, 155, 216, 0.16);
     --isotipo-pelo: #cfe3fa;
     --isotipo-arco: #25bfcb;
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: none;
+    --primario: #1a9fad;
+    --primario-hover: #22b4c2;
     --shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6);
     --shadow-lg: 0 30px 60px -24px rgba(0, 0, 0, 0.7);
   }
@@ -160,7 +175,9 @@
   --info-bg: rgba(91, 155, 216, 0.16);
   --isotipo-pelo: #cfe3fa;
   --isotipo-arco: #25bfcb;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: none;
+  --primario: #1a9fad;
+  --primario-hover: #22b4c2;
   --shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.6);
   --shadow-lg: 0 30px 60px -24px rgba(0, 0, 0, 0.7);
 }

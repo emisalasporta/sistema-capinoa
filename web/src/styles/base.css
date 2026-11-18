@@ -61,7 +61,9 @@ a {
 }
 
 .sidebar {
-  background: linear-gradient(180deg, #0e2c4b 0%, #123b5e 46%, #0f5563 100%);
+  /* Navy liso, apenas más claro abajo: el degradé hacia el teal competía con
+     el contenido. */
+  background: linear-gradient(180deg, #0e2a46 0%, #11324f 100%);
   color: #eaf3f7;
   display: flex;
   flex-direction: column;
@@ -117,35 +119,38 @@ a {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.95rem;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid transparent;
   transition: background 0.15s, color 0.15s;
 }
 .nav a svg {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
   flex: none;
-  opacity: 0.9;
+  opacity: 0.8;
 }
 .nav a:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: #fff;
 }
 .nav a.active {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.1);
   color: #fff;
-  border-color: rgba(255, 255, 255, 0.14);
+}
+.nav a.active svg {
+  opacity: 1;
+  color: var(--teal-bright);
 }
 .nav a .count {
   margin-left: auto;
   font-size: 0.72rem;
-  background: rgba(255, 255, 255, 0.16);
-  padding: 1px 8px;
+  color: rgba(255, 255, 255, 0.6);
+  background: none;
+  padding: 0;
   border-radius: 20px;
 }
 .side-user {
@@ -214,8 +219,8 @@ a {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 14px 26px;
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  padding: 16px var(--esp-5);
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
 }
@@ -223,7 +228,7 @@ a {
   display: none;
 }
 .topbar h1 {
-  font-size: 1.2rem;
+  font-size: 1.15rem;
   font-weight: 600;
   margin: 0;
   letter-spacing: -0.01em;
@@ -243,8 +248,8 @@ a {
   width: var(--alto-control);
   height: var(--alto-control);
   border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong);
-  background: var(--card);
+  border: 1px solid var(--line);
+  background: transparent;
   color: var(--muted);
   cursor: pointer;
   display: grid;
@@ -262,17 +267,26 @@ a {
 }
 
 .content {
-  padding: var(--esp-5) var(--esp-5) 60px;
+  padding: var(--esp-5) var(--esp-5) 64px;
   display: flex;
   flex-direction: column;
-  gap: var(--esp-4);
+  gap: var(--esp-pagina);
   max-width: 1240px;
   width: 100%;
 }
 /* Un botón "volver" arriba de todo no debería empujar tanto al contenido. */
 .content > .volver {
   align-self: flex-start;
-  margin-bottom: calc(var(--esp-4) * -1 + var(--esp-2));
+  margin-bottom: calc(var(--esp-pagina) * -1 + var(--esp-2));
+}
+
+/* Bloque que agrupa varias partes de una pantalla (por ejemplo, todo lo que
+   se esconde junto cuando el usuario no tiene permiso). Repite la misma
+   separación que el área de contenido; sin esto, sus hijos quedan pegados. */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--esp-pagina);
 }
 
 /* ---------- Responsive ---------- */
