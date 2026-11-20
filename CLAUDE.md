@@ -128,7 +128,7 @@ Mismo molde que el sistema DPRD. Vive en el VPS de Emiliano (Hostinger) con
   trae `rol`, `activo`, `verified` o `debe_cambiar_clave`. Si se agrega otro
   campo de privilegio a `equipo`, sumarlo a esa regla.
 - **Límite de intentos** (`settings.rateLimits`, migración `1756000160`): 8
-  ingresos por minuto por IP, 5 intentos de activación. La IP real sale de
+  ingresos por minuto por IP. La IP real sale de
   `X-Forwarded-For` (Traefik); sin eso todos comparten la misma.
 - **Archivos protegidos:** `fotos.archivo`, `marcados.render` y
   `reportes.captura`. Un campo de archivo nuevo con algo de un paciente nace con
@@ -245,18 +245,20 @@ Regla de negocio del cliente: **recepción NO ve historias clínicas ni fotos.**
 
 ## Licencia / período de prueba
 
-- Collection `licencia` (un registro, todas las reglas en `null`: solo la tocan
-  los hooks). Lógica en `pb_hooks/lib_licencia.js`, hooks en `licencia.pb.js`.
-- Bloquea en `onRecordAuthRequest`: sin sesión no hay datos. **El rol `admin`
-  nunca se bloquea** — es la cuenta con la que se entra a activar.
-- La clave no está en el código: está su **sha256**. Para cambiarla, recalcular
-  el hash y reemplazar `HUELLA` en `lib_licencia.js`.
-- **Online funciona igual**: el estado de la licencia viaja adentro de los datos,
-  así que al mudar la base de la clínica llega con los días que ya llevaba
-  contados. Se activa una sola vez, desde cualquier computadora, y queda activado
-  para todos. La activación tiene límite de intentos.
-- Anti-atraso de reloj: se guarda `ultima_vista` (la fecha más adelantada vista)
-  y se calcula contra `max(hoy, ultima_vista)`.
+**Desde el 20/11/2026 no hay período de prueba ni clave de activación** (pedido de
+Emiliano: el sistema vive en su servidor y Ricardo aceptó el precio).
+
+- `estado()` en `pb_hooks/lib_licencia.js` devuelve **siempre** `activado: true`,
+  sin leer la collection. Por eso una mudanza de datos de la clínica, que trae
+  el registro de `licencia` como estaba (quizás sin activar), no bloquea a nadie.
+- `licencia.pb.js` solo expone `GET /api/capinoa/licencia` (siempre
+  `"activado": true`). Ya no hay bloqueo en `onRecordAuthRequest` ni ruta
+  `/api/capinoa/activar`.
+- En pantalla: sin barra de días de prueba, sin botón de clave en el login, y en
+  Configuración la sección Licencia dice solo «Sistema activado».
+- La collection `licencia` **se conserva tal cual** (no borrarla: es parte de los
+  datos). El límite de intentos de `POST /api/capinoa/activar` sigue en la
+  migración `1756000160` pero no hace nada; no editar esa migración.
 
 ## La versión local de la clínica (en retirada)
 

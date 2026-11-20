@@ -55,17 +55,6 @@ import "../styles/components.css";
         <div class="login-note" id="notaLogin">
           Tus datos viven en tu propio sistema, no en el de un tercero.
         </div>
-
-        <!--
-          Si el período de prueba venció, la activación tiene que estar ACÁ.
-          Estaba solo adentro de Configuración, y ahí no se llega sin iniciar
-          sesión: justo lo que el vencimiento impide. Quedaba sin salida.
-        -->
-        <div id="zonaActivacion" class="hidden" style="margin-top:18px">
-          <button class="btn btn-ghost" type="button" id="botonActivarLogin" style="width:100%">
-            Tengo la clave de activación
-          </button>
-        </div>
       </form>
     </div>
 
@@ -73,30 +62,6 @@ import "../styles/components.css";
       import { pb } from "../lib/pocketbase";
       import { ingresar } from "../lib/auth";
       import { mensajeDeError } from "../lib/ui";
-      import { estadoLicencia, pedirClave } from "../lib/licencia";
-
-      // Estado del período de prueba: si venció, se ofrece activar desde acá.
-      const zonaActivacion = document.getElementById("zonaActivacion") as HTMLElement;
-      document.getElementById("botonActivarLogin")?.addEventListener("click", () =>
-        pedirClave(() => location.reload())
-      );
-
-      estadoLicencia().then((s) => {
-        if (!s || s.activado) return;
-        zonaActivacion.classList.remove("hidden");
-        if (s.bloqueado) {
-          const nota = document.getElementById("notaLogin")!;
-          nota.innerHTML =
-            "El período de prueba terminó.<br><b>Tus datos están intactos</b>: " +
-            "con la clave de activación vuelve a funcionar todo tal cual estaba.";
-          nota.style.color = "var(--warn)";
-        } else {
-          document.getElementById("notaLogin")!.textContent =
-            s.dias_restantes === 1
-              ? "Período de prueba: queda 1 día."
-              : `Período de prueba: quedan ${s.dias_restantes} días.`;
-        }
-      });
 
       const form = document.getElementById("formLogin") as HTMLFormElement;
       const boton = document.getElementById("botonIngresar") as HTMLButtonElement;

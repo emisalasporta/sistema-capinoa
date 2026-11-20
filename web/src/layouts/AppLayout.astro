@@ -35,7 +35,6 @@ const { titulo, subtitulo = "" } = Astro.props;
     <div id="app">
       <Sidebar />
       <div class="main">
-        <div id="avisoPrueba"></div>
         <header class="topbar">
           <button class="icon-btn burger" id="burger" aria-label="Abrir menú">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -64,13 +63,9 @@ const { titulo, subtitulo = "" } = Astro.props;
 
     <script>
       import { requiereSesion } from "../lib/auth";
-      import { mostrarAvisoDePrueba } from "../lib/licencia";
 
       // Si no hay sesión, esta línea redirige al login y no se dibuja nada más.
-      if (requiereSesion()) {
-        const caja = document.getElementById("avisoPrueba");
-        if (caja) mostrarAvisoDePrueba(caja);
-      }
+      requiereSesion();
 
       // Menú lateral en pantallas chicas.
       const barra = document.getElementById("sidebar");

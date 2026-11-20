@@ -123,16 +123,10 @@ y abajo el detalle de cada movimiento.
   Desde ahí también se puede registrar un cobro nuevo directamente.
 - Recepción **no entra** a finanzas.
 
-## Período de prueba
+## Licencia
 
-El sistema viene con **15 días de prueba**, que empiezan a contar la primera vez
-que alguien inicia sesión (no cuando se copia la carpeta).
-
-- Arriba de la pantalla aparece cuántos días quedan.
-- Al terminar, el sistema **deja de abrirse**. Los datos **no se borran ni se
-  tocan**: pacientes, historias, fotos, turnos y cuentas siguen ahí.
-- Con la clave que da Emiliano, en Configuración → *"Tengo la clave de
-  activación"*, el sistema queda habilitado para siempre.
+El sistema está **activado para siempre**: no tiene período de prueba ni pide
+clave de activación. En Configuración → Licencia dice «Sistema activado».
 
 ## Actualizaciones
 
@@ -208,7 +202,7 @@ esa versión y dejan de usarse.
 - ✅ Agenda de turnos por semana y por mes, con estados y turnos para no-pacientes
 - ✅ Finanzas por mes + cuenta de cada paciente en su ficha
 - ✅ Configuración: mi cuenta, usuarios, licencia y respaldos
-- ✅ Período de prueba de 15 días con clave de activación
+- ✅ Sistema activado, sin período de prueba ni clave
 - ✅ Actualizaciones que no tocan los datos + respaldos automáticos
 - ✅ En internet: dirección propia con candado, contraseña propia obligatoria,
   límite de intentos de ingreso, copias fuera del servidor y aviso si se cae

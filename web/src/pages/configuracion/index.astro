@@ -35,7 +35,9 @@ import AppLayout from "../../layouts/AppLayout.astro";
   <!-- ═════════ LICENCIA ═════════ -->
   <section class="card pad">
     <div class="section-title">Licencia del sistema</div>
-    <div id="cajaLicencia"><div class="vacio">Consultando…</div></div>
+    <div class="dl">
+      <div><dt>Estado</dt><dd style="color:var(--good); font-weight:600">Sistema activado</dd></div>
+    </div>
   </section>
 
   <!-- ═════════ USUARIOS (solo admin) ═════════ -->
@@ -122,7 +124,6 @@ import AppLayout from "../../layouts/AppLayout.astro";
 <script>
   import { pb } from "../../lib/pocketbase";
   import { usuarioActual, puedeAdministrar, puedeVerClinico, NOMBRE_ROL, salir, LARGO_MINIMO_CLAVE } from "../../lib/auth";
-  import { estadoLicencia, pedirClave } from "../../lib/licencia";
   import { esc, aviso, mensajeDeError, fecha, ICONO } from "../../lib/ui";
   import { imagen, liberar } from "../../lib/archivos";
   import { TIPOS_REPORTE, type Reporte } from "../../lib/reportar";
@@ -176,48 +177,6 @@ import AppLayout from "../../layouts/AppLayout.astro";
       );
     }
   });
-
-  /* ───────── Licencia ───────── */
-
-  async function dibujarLicencia() {
-    const caja = document.getElementById("cajaLicencia")!;
-    const s = await estadoLicencia();
-
-    if (!s) {
-      caja.innerHTML = `<div class="vacio">No se pudo consultar el estado de la licencia.</div>`;
-      return;
-    }
-
-    if (s.activado) {
-      caja.innerHTML = `
-        <div class="dl">
-          <div><dt>Estado</dt><dd style="color:var(--good); font-weight:600">Sistema activado</dd></div>
-          <div><dt>Vigencia</dt><dd>Sin vencimiento</dd></div>
-        </div>`;
-      return;
-    }
-
-    const dias = s.dias_restantes;
-    const color = dias <= 0 ? "var(--bad)" : dias <= 5 ? "var(--warn)" : "var(--ink)";
-    caja.innerHTML = `
-      <div class="dl" style="margin-bottom:var(--esp-3)">
-        <div><dt>Estado</dt><dd style="color:${color}; font-weight:600">${dias <= 0 ? "Período de prueba vencido" : "Período de prueba"}</dd></div>
-        <div><dt>Días restantes</dt><dd style="color:${color}; font-weight:600">${dias} de ${s.dias_prueba}</dd></div>
-      </div>
-      <p style="color:var(--muted); font-size:.88rem; line-height:1.6; margin:0 0 14px">
-        Cuando termine la prueba el sistema deja de abrirse, pero
-        <b style="color:var(--ink)">tus datos quedan intactos</b>: pacientes,
-        historias, fotos y turnos siguen guardados. Con la clave de activación
-        vuelve a funcionar todo tal cual estaba.
-      </p>
-      <button class="btn btn-primary" id="botonActivar">${ICONO.tilde} Tengo la clave de activación</button>`;
-
-    document
-      .getElementById("botonActivar")
-      ?.addEventListener("click", () => pedirClave(() => dibujarLicencia()));
-  }
-
-  dibujarLicencia();
 
   /* ───────── Usuarios ───────── */
 

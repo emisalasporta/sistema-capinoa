@@ -1515,36 +1515,6 @@ dialog.modal .modal-foot .btn-danger {
   font-size: 0.9rem;
 }
 
-/* ---------- Barra del período de prueba ---------- */
-.barra-prueba {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  flex-wrap: wrap;
-  padding: 8px 20px;
-  font-size: var(--txt-sm);
-  font-weight: 500;
-  border-bottom: 1px solid var(--line);
-}
-.barra-prueba.info {
-  background: var(--info-bg);
-  color: var(--info);
-}
-.barra-prueba.warn {
-  background: var(--warn-bg);
-  color: var(--warn);
-}
-.barra-prueba.bad {
-  background: var(--bad-bg);
-  color: var(--bad);
-}
-.barra-prueba .btn {
-  height: 28px;
-  padding: 0 12px;
-  font-size: var(--txt-sm);
-}
-
 /* ---------- Aviso flotante ---------- */
 .toast {
   position: fixed;
